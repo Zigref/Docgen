@@ -27,11 +27,23 @@ pub fn parse(source: [:0]const u8) !void {
     );
 
     defer ast.deinit(std.heap.page_allocator);
+    const tags = ast.nodes.items(.tag);
+    const data = ast.nodes.items(.data);
 
     for (ast.rootDecls()) |decl| {
-        const main_token = ast.nodeMainToken(decl);
-        const name = ast.tokenSlice(main_token + 1);
-        std.debug.print("{s}\n", .{name});
+        const index = @intFromEnum(decl);
+
+        switch (tags[index]) {
+            .fn_decl => {
+                const proto = data[index].node_and_node[0];
+                const token = ast.nodeMainToken(proto);
+                const name = ast.tokenSlice(token + 1);
+                const signature = ast.getNodeSource(proto);
+
+                std.debug.print("name of the function: {s} \n\nand source code of only the declaration of the function: {s}\n\n", .{ name, signature });
+            },
+            else => {},
+        }
     }
 }
 
