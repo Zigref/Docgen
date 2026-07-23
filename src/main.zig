@@ -42,6 +42,17 @@ pub fn parse(source: [:0]const u8) !void {
 
                 std.debug.print("name of the function: {s} \n\nand source code of only the declaration of the function: {s}\n\n", .{ name, signature });
             },
+            .global_var_decl,
+            .local_var_decl,
+            .simple_var_decl,
+            .aligned_var_decl,
+            => {
+                const token = ast.nodeMainToken(decl);
+                const name = ast.tokenSlice(token + 1);
+                const declaration = ast.getNodeSource(decl);
+
+                std.debug.print("{s}:{s}", .{ name, declaration });
+            },
             else => {},
         }
     }
