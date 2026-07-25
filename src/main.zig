@@ -143,12 +143,16 @@ pub fn parse(source: [:0]const u8, file_name: []const u8) !std.ArrayList(identif
 }
 
 pub fn main(init: std.process.Init) !void {
-    var iterator = try init.minimal.args.iterateAllocator(init.gpa);
+    var iterator = try init.minimal.args.iterateAllocator(std.heap.page_allocator);
 
     const io = init.io;
 
+    _ = iterator.next().?;
+
+    var entire_documentation: std.ArrayList(identifier) = .empty;
+
     if (iterator.next()) |input_folder| {
-        var dir = try std.Io.Dir.cwd().openDir(io, input_folder, .{ .iterate = true });
+        var dir = try std.Io.Dir.cwd().openDir(io, input_folder, .{ .iterate = true, .access_sub_paths = true });
         defer dir.close(io);
 
         var iter = dir.iterate();
@@ -157,17 +161,35 @@ pub fn main(init: std.process.Init) !void {
             if (entry.kind != .file) {
                 continue;
             }
+            std.debug.print("{s}", .{entry.name});
             if (!std.mem.endsWith(u8, entry.name, ".zig")) {
                 continue;
             }
 
-            var buf: []u8 = undefined;
+            const file_content = try dir.readFileAlloc(io, entry.name, init.gpa, std.Io.Limit.unlimited);
+            defer init.gpa.free(file_content);
 
-            const file = try dir.readFile(io, entry.name, buf);
-            defer file.close();
+            const content = try std.heap.page_allocator.dupeZ(u8, file_content);
+            defer std.heap.page_allocator.free(content);
+
+            const res = try parse(content, entry.name);
+
+            defer res.deinit(gpa.init);
+
+            try entire_documentation.appendSlice(init.gpa, res.items);
         }
     } else {
         std.debug.print("Usage:\n\nzigref path/to/input/dir", .{});
+    }
+
+    for (entire_documentation.items, 0..) |r, i| {
+        std.debug.print("-----COMPONENT NUMBER {}-----\n", .{i});
+        std.debug.print("name={s}\ncomment={?s}\nsignature={s}\nfile={s}\n", .{
+            r.name,
+            r.comment,
+            r.signature,
+            r.file_name,
+        });
     }
 }
 
