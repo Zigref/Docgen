@@ -65,7 +65,14 @@ pub fn returns_the_comment_before_the_identifier_nullable(ast: std.zig.Ast, decl
     return ast.source[index_where_comment_declared..index_where_identifier_declared];
 }
 
-pub fn parse(source: [:0]const u8) !void {
+const identifier = struct {
+    name: []const u8,
+    comment: ?[]const u8,
+    signature: []const u8,
+    file_name: []const u8,
+};
+
+pub fn parse(source: [:0]const u8, file_name: []const u8) !std.ArrayList(identifier) {
     var ast = try std.zig.Ast.parse(
         std.heap.page_allocator,
         source,
@@ -76,11 +83,13 @@ pub fn parse(source: [:0]const u8) !void {
     const tags = ast.nodes.items(.tag);
     const data = ast.nodes.items(.data);
 
+    var result_to_return: std.ArrayList(identifier) = .empty;
+
     for (ast.rootDecls()) |decl| {
+        var the_current_identifier: identifier = undefined;
         const index = @intFromEnum(decl);
 
-        const res = returns_the_comment_before_the_identifier_nullable(ast, decl);
-        std.debug.print("{s}", .{res orelse ""});
+        const comment = returns_the_comment_before_the_identifier_nullable(ast, decl);
 
         switch (tags[index]) {
             .fn_decl => {
@@ -89,7 +98,12 @@ pub fn parse(source: [:0]const u8) !void {
                 const name = ast.tokenSlice(token + 1);
                 const signature = ast.getNodeSource(proto);
 
-                std.debug.print("name of the function: {s} \n\nand source code of only the declaration of the function: {s}\n\n", .{ name, signature });
+                the_current_identifier = .{
+                    .comment = comment,
+                    .file_name = file_name,
+                    .name = name,
+                    .signature = signature,
+                };
             },
             .global_var_decl,
             .local_var_decl,
@@ -98,15 +112,45 @@ pub fn parse(source: [:0]const u8) !void {
             => {
                 const token = ast.nodeMainToken(decl);
                 const name = ast.tokenSlice(token + 1);
-                const declaration = ast.getNodeSource(decl);
+                const signature = ast.getNodeSource(decl);
 
-                std.debug.print("{s}:{s}", .{ name, declaration });
+                the_current_identifier = .{
+                    .comment = comment,
+                    .file_name = file_name,
+                    .name = name,
+                    .signature = signature,
+                };
+            },
+            .test_decl => {
+                const name = ast.getNodeSource(decl);
+
+                the_current_identifier = .{
+                    .comment = comment,
+                    .file_name = file_name,
+                    .name = name,
+                    .signature = name,
+                };
             },
             else => {},
         }
+        try result_to_return.append(
+            std.heap.page_allocator,
+            the_current_identifier,
+        );
     }
+
+    return result_to_return;
 }
 
 pub fn main(_: std.process.Init) !void {
-    try parse(test_code);
+    const res = try parse(test_code, "main.zig");
+    for (res.items, 1..) |r, i| {
+        std.debug.print("-----COMPONENT NUMBER {}-----\n", .{i});
+        std.debug.print("name={s}\ncomment={?s}\nsignature={s}\nfile={s}\n", .{
+            r.name,
+            r.comment,
+            r.signature,
+            r.file_name,
+        });
+    }
 }
