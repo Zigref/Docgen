@@ -142,9 +142,38 @@ pub fn parse(source: [:0]const u8, file_name: []const u8) !std.ArrayList(identif
     return result_to_return;
 }
 
-pub fn main(_: std.process.Init) !void {
+pub fn main(init: std.process.Init) !void {
+    var iterator = try init.minimal.args.iterateAllocator(init.gpa);
+
+    const io = init.io;
+
+    if (iterator.next()) |input_folder| {
+        var dir = try std.Io.Dir.cwd().openDir(io, input_folder, .{ .iterate = true });
+        defer dir.close(io);
+
+        var iter = dir.iterate();
+
+        while (try iter.next(io)) |entry| {
+            if (entry.kind != .file) {
+                continue;
+            }
+            if (!std.mem.endsWith(u8, entry.name, ".zig")) {
+                continue;
+            }
+
+            var buf: []u8 = undefined;
+
+            const file = try dir.readFile(io, entry.name, buf);
+            defer file.close();
+        }
+    } else {
+        std.debug.print("Usage:\n\nzigref path/to/input/dir", .{});
+    }
+}
+
+test "normal_test" {
     const res = try parse(test_code, "main.zig");
-    for (res.items, 1..) |r, i| {
+    for (res.items, 0..) |r, i| {
         std.debug.print("-----COMPONENT NUMBER {}-----\n", .{i});
         std.debug.print("name={s}\ncomment={?s}\nsignature={s}\nfile={s}\n", .{
             r.name,
