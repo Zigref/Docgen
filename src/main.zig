@@ -72,14 +72,13 @@ const identifier = struct {
     file_name: []const u8,
 };
 
-pub fn parse(source: [:0]const u8, file_name: []const u8) !std.ArrayList(identifier) {
+pub fn parse(source: [:0]const u8, file_name: []const u8, gpa: std.mem.Allocator) !std.ArrayList(identifier) {
     var ast = try std.zig.Ast.parse(
-        std.heap.page_allocator,
+        gpa,
         source,
         .zig,
     );
 
-    defer ast.deinit(std.heap.page_allocator);
     const tags = ast.nodes.items(.tag);
     const data = ast.nodes.items(.data);
 
@@ -134,7 +133,7 @@ pub fn parse(source: [:0]const u8, file_name: []const u8) !std.ArrayList(identif
             else => {},
         }
         try result_to_return.append(
-            std.heap.page_allocator,
+            gpa,
             the_current_identifier,
         );
     }
@@ -143,7 +142,7 @@ pub fn parse(source: [:0]const u8, file_name: []const u8) !std.ArrayList(identif
 }
 
 pub fn main(init: std.process.Init) !void {
-    var iterator = try init.minimal.args.iterateAllocator(std.heap.page_allocator);
+    var iterator = try init.minimal.args.iterateAllocator(init.gpa);
 
     const io = init.io;
 
@@ -155,27 +154,22 @@ pub fn main(init: std.process.Init) !void {
         var dir = try std.Io.Dir.cwd().openDir(io, input_folder, .{ .iterate = true, .access_sub_paths = true });
         defer dir.close(io);
 
-        var iter = dir.iterate();
+        var iter = try dir.walk(init.gpa);
 
         while (try iter.next(io)) |entry| {
             if (entry.kind != .file) {
                 continue;
             }
-            std.debug.print("{s}", .{entry.name});
-            if (!std.mem.endsWith(u8, entry.name, ".zig")) {
+            if (!std.mem.endsWith(u8, entry.path, ".zig")) {
                 continue;
             }
 
-            const file_content = try dir.readFileAlloc(io, entry.name, init.gpa, std.Io.Limit.unlimited);
+            const file_content = try dir.readFileAlloc(io, entry.path, init.gpa, std.Io.Limit.unlimited);
             defer init.gpa.free(file_content);
 
-            const content = try std.heap.page_allocator.dupeZ(u8, file_content);
-            defer std.heap.page_allocator.free(content);
+            const content = try init.gpa.dupeZ(u8, file_content);
 
-            const res = try parse(content, entry.name);
-
-            defer res.deinit(gpa.init);
-
+            const res = try parse(content, entry.path, init.gpa);
             try entire_documentation.appendSlice(init.gpa, res.items);
         }
     } else {
