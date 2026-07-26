@@ -3,23 +3,33 @@
 <html>
 
 <head>
-    <title>{__TITLE_OF_REPO__}</title>
+    <title></title>
+    <style>
+    </style>
 </head>
 
 <body>
     <div id="main">
+        <h1 id="pkg_name"></h1>
         <details id="constants">
-            <summary>Constants</summary>
+            <summary>Constants/Variables</summary>
         </details>
 
         <details id="functions">
             <summary>Functions</summary>
+        </details>
+
+        <details id="tests">
+            <summary>Tests</summary>
         </details>
     </div>
     </div>
     <script>
         const main = document.getElementById("main");
         const constants = document.getElementById("constants");
+        const functions = document.getElementById("functions");
+        const tests = document.getElementById("tests");
+        document.getElementById("pkg_name").innerHTML = "gh/zigistry/zigref";
 
         async function start() {
             const data = await fetch("/template.json").then(r => r.json());
@@ -31,6 +41,19 @@
                         constant.innerHTML = i.name;
                         constant.href = "#";
                         constants.appendChild(constant);
+                        constants.appendChild(document.createElement("br"));
+                    } else if (i.type === 'function') {
+                        const func = document.createElement("a");
+                        func.innerHTML = i.name;
+                        func.href = "#";
+                        functions.appendChild(func);
+                        functions.appendChild(document.createElement("br"));
+                    } else if (i.type === 'test') {
+                        const test = document.createElement("a");
+                        test.innerHTML = i.name;
+                        test.href = "#";
+                        tests.appendChild(test);
+                        tests.appendChild(document.createElement("br"));
                     }
                 }
             }

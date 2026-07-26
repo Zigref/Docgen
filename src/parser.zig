@@ -144,13 +144,15 @@ fn parse_zig(source: [:0]const u8) ![]const u8 {
                 };
             },
             .test_decl => {
-                const name = ast.getNodeSource(decl);
+                const token = ast.nodeMainToken(decl);
+                const name = ast.tokenSlice(token + 1);
+                const signature = ast.getNodeSource(decl);
 
                 the_current_identifier = .{
                     .comment = comment,
                     .name = name,
                     .type = "test",
-                    .signature = name,
+                    .signature = signature,
                 };
             },
             else => {
