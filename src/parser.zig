@@ -71,13 +71,28 @@ const identifier = struct {
 
 const allocator = std.heap.c_allocator;
 
+/// I am making this to ensure that any string
+/// being returned from this is definitley
+/// allocated.
 export fn parse(_source: [*:0]const u8) [*:0]const u8 {
     const source = std.mem.span(_source);
-    var ast = std.zig.Ast.parse(
+
+    const res = parse_zig(source) catch {
+        const allocated_string = allocator.dupeZ(u8, "Error while parsing.") catch @panic("No more RAM available");
+        return allocated_string;
+    };
+
+    const allocated_string = allocator.dupeZ(u8, res) catch @panic("No more RAM available.");
+    allocator.free(res);
+    return allocated_string.ptr;
+}
+
+fn parse_zig(source: [:0]const u8) ![]const u8 {
+    var ast = try std.zig.Ast.parse(
         allocator,
         source,
         .zig,
-    ) catch return "Error while parsing this file";
+    );
 
     defer ast.deinit(allocator);
 
@@ -134,19 +149,15 @@ export fn parse(_source: [*:0]const u8) [*:0]const u8 {
                 continue;
             },
         }
-        result_to_return.append(
+        try result_to_return.append(
             allocator,
             the_current_identifier,
-        ) catch return "Error while parsing this file";
+        );
     }
 
-    var list: std.Io.Writer.Allocating = .init(allocator);
-    defer list.deinit();
-    std.json.Stringify.value(result_to_return.items, .{}, &list.writer) catch return "Error while parsing this file";
+    const result = try std.json.Stringify.valueAlloc(allocator, result_to_return.items, .{});
 
-    const res = allocator.dupeZ(u8, list.written()) catch return "Error while parsing this file";
-
-    return res.ptr;
+    return result;
 }
 
 test "normal_test" {
