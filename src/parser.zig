@@ -17,8 +17,6 @@
 
 const std = @import("std");
 
-const test_code: [:0]const u8 = @embedFile("main.zig");
-
 pub fn returns_the_comment_before_the_identifier_nullable(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?[]const u8 {
     // firstToken returns the index of the declared token *Inside* the AST.
     const first_token_of_the_identifier_declared = ast.firstToken(decl);
@@ -69,20 +67,25 @@ const identifier = struct {
     name: []const u8,
     comment: ?[]const u8,
     signature: []const u8,
-    file_name: []const u8,
 };
 
-pub fn parse(source: [:0]const u8, file_name: []const u8, gpa: std.mem.Allocator) !std.ArrayList(identifier) {
-    var ast = try std.zig.Ast.parse(
-        gpa,
+const allocator = std.heap.c_allocator;
+
+export fn parse(_source: [*:0]const u8) [*:0]const u8 {
+    const source = std.mem.span(_source);
+    var ast = std.zig.Ast.parse(
+        allocator,
         source,
         .zig,
-    );
+    ) catch return "Error while parsing this file";
+
+    defer ast.deinit(allocator);
 
     const tags = ast.nodes.items(.tag);
     const data = ast.nodes.items(.data);
 
     var result_to_return: std.ArrayList(identifier) = .empty;
+    defer result_to_return.deinit(allocator);
 
     for (ast.rootDecls()) |decl| {
         var the_current_identifier: identifier = undefined;
@@ -99,7 +102,6 @@ pub fn parse(source: [:0]const u8, file_name: []const u8, gpa: std.mem.Allocator
 
                 the_current_identifier = .{
                     .comment = comment,
-                    .file_name = file_name,
                     .name = name,
                     .signature = signature,
                 };
@@ -115,7 +117,6 @@ pub fn parse(source: [:0]const u8, file_name: []const u8, gpa: std.mem.Allocator
 
                 the_current_identifier = .{
                     .comment = comment,
-                    .file_name = file_name,
                     .name = name,
                     .signature = signature,
                 };
@@ -125,77 +126,31 @@ pub fn parse(source: [:0]const u8, file_name: []const u8, gpa: std.mem.Allocator
 
                 the_current_identifier = .{
                     .comment = comment,
-                    .file_name = file_name,
                     .name = name,
                     .signature = name,
                 };
             },
-            else => {},
+            else => {
+                continue;
+            },
         }
-        try result_to_return.append(
-            gpa,
+        result_to_return.append(
+            allocator,
             the_current_identifier,
-        );
+        ) catch return "Error while parsing this file";
     }
 
-    return result_to_return;
-}
+    var list: std.Io.Writer.Allocating = .init(allocator);
+    defer list.deinit();
+    std.json.Stringify.value(result_to_return.items, .{}, &list.writer) catch return "Error while parsing this file";
 
-pub fn main(init: std.process.Init) !void {
-    var iterator = try init.minimal.args.iterateAllocator(init.gpa);
+    const res = allocator.dupeZ(u8, list.written()) catch return "Error while parsing this file";
 
-    const io = init.io;
-
-    _ = iterator.next().?;
-
-    var entire_documentation: std.ArrayList(identifier) = .empty;
-
-    if (iterator.next()) |input_folder| {
-        var dir = try std.Io.Dir.cwd().openDir(io, input_folder, .{ .iterate = true, .access_sub_paths = true });
-        defer dir.close(io);
-
-        var iter = try dir.walk(init.gpa);
-
-        while (try iter.next(io)) |entry| {
-            if (entry.kind != .file) {
-                continue;
-            }
-            if (!std.mem.endsWith(u8, entry.path, ".zig")) {
-                continue;
-            }
-
-            const file_content = try dir.readFileAlloc(io, entry.path, init.gpa, std.Io.Limit.unlimited);
-            defer init.gpa.free(file_content);
-
-            const content = try init.gpa.dupeZ(u8, file_content);
-
-            const res = try parse(content, entry.path, init.gpa);
-            try entire_documentation.appendSlice(init.gpa, res.items);
-        }
-    } else {
-        std.debug.print("Usage:\n\nzigref path/to/input/dir", .{});
-    }
-
-    for (entire_documentation.items, 0..) |r, i| {
-        std.debug.print("-----COMPONENT NUMBER {}-----\n", .{i});
-        std.debug.print("name={s}\ncomment={?s}\nsignature={s}\nfile={s}\n", .{
-            r.name,
-            r.comment,
-            r.signature,
-            r.file_name,
-        });
-    }
+    return res.ptr;
 }
 
 test "normal_test" {
-    const res = try parse(test_code, "main.zig");
-    for (res.items, 0..) |r, i| {
-        std.debug.print("-----COMPONENT NUMBER {}-----\n", .{i});
-        std.debug.print("name={s}\ncomment={?s}\nsignature={s}\nfile={s}\n", .{
-            r.name,
-            r.comment,
-            r.signature,
-            r.file_name,
-        });
-    }
+    const test_code: [*:0]const u8 = "const std = @import(\"zig\");";
+    const res = parse(test_code);
+    std.debug.print("{s}", .{res});
 }
