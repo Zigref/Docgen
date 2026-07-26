@@ -87,6 +87,10 @@ export fn parse(_source: [*:0]const u8) [*:0]const u8 {
     return allocated_string.ptr;
 }
 
+export fn free_zig_string(allocated_string: [*:0]const u8) void {
+    allocator.free(std.mem.span(allocated_string));
+}
+
 fn parse_zig(source: [:0]const u8) ![]const u8 {
     var ast = try std.zig.Ast.parse(
         allocator,
