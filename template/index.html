@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <title>{__TITLE_OF_REPO__}</title>
+</head>
+
+<body>
+    <div id="main">
+        <details id="constants">
+            <summary>Constants</summary>
+        </details>
+
+        <details id="functions">
+            <summary>Functions</summary>
+        </details>
+    </div>
+    </div>
+    <script>
+        const main = document.getElementById("main");
+        const constants = document.getElementById("constants");
+
+        async function start() {
+            const data = await fetch("/template.json").then(r => r.json());
+
+            for (const [x, y] of Object.entries(data)) {
+                for (i of y) {
+                    if (i.type === 'variable') {
+                        const constant = document.createElement("a");
+                        constant.innerHTML = i.name;
+                        constant.href = "#";
+                        constants.appendChild(constant);
+                    }
+                }
+            }
+        }
+
+        start();
+    </script>
+</body>
+
+</html>
