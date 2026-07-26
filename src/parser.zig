@@ -66,6 +66,7 @@ pub fn returns_the_comment_before_the_identifier_nullable(ast: std.zig.Ast, decl
 const identifier = struct {
     name: []const u8,
     comment: ?[]const u8,
+    type: []const u8,
     signature: []const u8,
 };
 
@@ -122,6 +123,7 @@ fn parse_zig(source: [:0]const u8) ![]const u8 {
                 the_current_identifier = .{
                     .comment = comment,
                     .name = name,
+                    .type = "function",
                     .signature = signature,
                 };
             },
@@ -137,6 +139,7 @@ fn parse_zig(source: [:0]const u8) ![]const u8 {
                 the_current_identifier = .{
                     .comment = comment,
                     .name = name,
+                    .type = "variable",
                     .signature = signature,
                 };
             },
@@ -146,6 +149,7 @@ fn parse_zig(source: [:0]const u8) ![]const u8 {
                 the_current_identifier = .{
                     .comment = comment,
                     .name = name,
+                    .type = "test",
                     .signature = name,
                 };
             },

@@ -1,13 +1,13 @@
 #include <iostream>
 #include <filesystem>
+#include <fstream>
+#include <nlohmann/json.hpp>
 
 extern "C"
 {
     const char *parse(const char *_source);
     void free_zig_string(const char *_string_to_free);
 }
-
-const char x[] = "const std = @import(\"zig\"); const std2 = @import(\"zig\");";
 
 int main(int argc, char *argv[])
 {
@@ -18,6 +18,8 @@ int main(int argc, char *argv[])
         return 0;
     }
     std::filesystem::path input_folder = argv[1];
+
+    nlohmann::json final_results;
 
     try
     {
@@ -33,19 +35,29 @@ int main(int argc, char *argv[])
                 continue;
             }
 
-            std::cout << entry.path() << std::endl;
+            std::ifstream file(entry.path(), std::ios::binary);
+
+            if (!file)
+            {
+                std::cerr << "File that should exist, somehow doesn't exist: " << entry.path() << std::endl;
+                return 0;
+            }
+            std::stringstream buffer;
+            buffer << file.rdbuf();
+
+            const char* result = parse(buffer.str().c_str());
+            nlohmann::json as_json =  nlohmann::json::parse(result);
+
+            final_results[entry.path()] = as_json;
         }
     }
     catch (std::exception &e)
     {
         std::cerr << "Filesystem error: " << e.what() << '\n';
+        return 1;
     }
-    // std::cout << "This is from C++" << std::endl;
-    // const char *res = parse(x);
 
-    // std::cout << res << std::endl;
-
-    // free_zig_string(res);
+    std::cout << final_results.dump() << std::endl;
 
     return 0;
 }
