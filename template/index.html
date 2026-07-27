@@ -2,24 +2,29 @@
 <html>
 
 <head>
-    <title></title>
+  <title></title>
 
-    <style>
-    </style>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs/themes/prism.min.css">
+  <style>
+    .outer-code-holder {
+      background-color: #f5f2f0;
+      padding:10px 0 0 10px;
+      border-radius: 20px;
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs/themes/prism.min.css">
 
-    <script src="https://cdn.jsdelivr.net/npm/prismjs/prism.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/prismjs/components/prism-zig.min.js"></script>
-    <script type="module">
-        import { html, render } from "https://unpkg.com/lit-html?module";
+  <script src="https://cdn.jsdelivr.net/npm/prismjs/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs/components/prism-zig.min.js"></script>
+  <script type="module">
+    import { html, render } from "https://unpkg.com/lit-html?module";
 
-        async function start() {
-            const data = await fetch("/template.json").then(r => r.json());
-            const items = Object.entries(data).flatMap(([file, items]) =>
-                items.map(item => ({ ...item, file }))
-            );
+    async function start() {
+      const data = await fetch("/template.json").then(r => r.json());
+      const items = Object.entries(data).flatMap(([file, items]) =>
+        items.map(item => ({ ...item, file }))
+      );
 
-            render(html`
+      render(html`
                 <h1>gh/zigistry/zigref</h1>
 
                 <input type="search"></input>
@@ -27,32 +32,38 @@
                 <details open>
                     <summary>Functions</summary>
                     ${items
-                    .filter(i => i.type === "function")
-                    .map(i => html`
-                            <pre>${i.file}:${i.line_number}<code class="language-zig">${i.comment}</code></pre>
-                            <pre><code class="language-zig">${i.signature}</code></pre>
-                        `)}
-                </details>
+          .filter(i => i.type === "function")
+          .map(i => html`
+                  <div class="outer-code-holder">
+                    <span>${i.file}:${i.line_number}</span>
 
-                <details open>
-                    <summary>Tests</summary>
-                    ${items
-                    .filter(i => i.type === "test")
-                    .map(i => html`
+                    ${i.comment !== null ? html` 
+                    <pre><code class="language-zig">${i.comment}</code></pre>` : ""}
+                    <pre><code class="language-zig">${i.signature}</code></pre>
+
+                  </div>
+                  `)}
+                </details >
+
+            <details open>
+              <summary>Tests</summary>
+              ${items
+          .filter(i => i.type === "test")
+          .map(i => html`
                             <pre>${i.file}:${i.line_number}<code class="language-zig">test ${i.name}</code></pre><br>
                         `)}
-                </details>
+            </details>
             `, document.getElementById("main"));
 
-            Prism.highlightAll();
-        }
+      Prism.highlightAll();
+    }
 
-        start();
-    </script>
+    start();
+  </script>
 </head>
 
 <body>
-    <div id="main"></div>
+  <div id="main"></div>
 </body>
 
 </html>
