@@ -63,11 +63,22 @@ pub fn returns_the_comment_before_the_identifier_nullable(ast: std.zig.Ast, decl
     return ast.source[index_where_comment_declared..index_where_identifier_declared];
 }
 
+pub fn get_line_number(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) u32 {
+    // get the first token.
+    const first_token = ast.firstToken(decl);
+    // getting the exact index of the character at which the token is starting.
+    const byte_offset_kind_of_index = ast.tokenStart(first_token);
+
+    // counting the number of new line characters from the 0th line till the byte offest
+    return @as(u32, @intCast(std.mem.count(u8, ast.source[0..byte_offset_kind_of_index], "\n"))) + 1;
+}
+
 const identifier = struct {
     name: []const u8,
     comment: ?[]const u8,
     type: []const u8,
     signature: []const u8,
+    line_number: u32,
 };
 
 const allocator = std.heap.c_allocator;
@@ -113,6 +124,7 @@ fn parse_zig(source: [:0]const u8) ![]const u8 {
 
         const comment = returns_the_comment_before_the_identifier_nullable(ast, decl);
 
+        const line_number = get_line_number(ast, decl);
         switch (tags[index]) {
             .fn_decl => {
                 const proto = data[index].node_and_node[0];
@@ -125,24 +137,25 @@ fn parse_zig(source: [:0]const u8) ![]const u8 {
                     .name = name,
                     .type = "function",
                     .signature = signature,
+                    .line_number = line_number,
                 };
             },
-            .global_var_decl,
-            .local_var_decl,
-            .simple_var_decl,
-            .aligned_var_decl,
-            => {
-                const token = ast.nodeMainToken(decl);
-                const name = ast.tokenSlice(token + 1);
-                const signature = ast.getNodeSource(decl);
+            // .global_var_decl,
+            // .local_var_decl,
+            // .simple_var_decl,
+            // .aligned_var_decl,
+            // => {
+            //     const token = ast.nodeMainToken(decl);
+            //     const name = ast.tokenSlice(token + 1);
+            //     const signature = ast.getNodeSource(decl);
 
-                the_current_identifier = .{
-                    .comment = comment,
-                    .name = name,
-                    .type = "variable",
-                    .signature = signature,
-                };
-            },
+            //     the_current_identifier = .{
+            //         .comment = comment,
+            //         .name = name,
+            //         .type = "variable",
+            //         .signature = signature,
+            //     };
+            // },
             .test_decl => {
                 const token = ast.nodeMainToken(decl);
                 const name = ast.tokenSlice(token + 1);
@@ -153,6 +166,7 @@ fn parse_zig(source: [:0]const u8) ![]const u8 {
                     .name = name,
                     .type = "test",
                     .signature = signature,
+                    .line_number = line_number,
                 };
             },
             else => {

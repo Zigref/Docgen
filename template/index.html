@@ -6,44 +6,45 @@
 
     <style>
     </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs/themes/prism.min.css">
 
+    <script src="https://cdn.jsdelivr.net/npm/prismjs/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs/components/prism-zig.min.js"></script>
     <script type="module">
         import { html, render } from "https://unpkg.com/lit-html?module";
 
         async function start() {
             const data = await fetch("/template.json").then(r => r.json());
-            const items = Object.values(data).flat();
+            const items = Object.entries(data).flatMap(([file, items]) =>
+                items.map(item => ({ ...item, file }))
+            );
 
             render(html`
                 <h1>gh/zigistry/zigref</h1>
 
-                <details>
-                    <summary>Constants/Variables</summary>
-                    ${items
-                    .filter(i => i.type === "variable")
-                    .map(i => html`
-                            <a href="#">${i.name}</a><br>
-                        `)}
-                </details>
-
-                <details>
+                <input type="search"></input>
+                <input type="button" value="search"></input>
+                <details open>
                     <summary>Functions</summary>
                     ${items
                     .filter(i => i.type === "function")
                     .map(i => html`
-                            <a href="#">${i.name}</a><br>
+                            <pre>${i.file}:${i.line_number}<code class="language-zig">${i.comment}</code></pre>
+                            <pre><code class="language-zig">${i.signature}</code></pre>
                         `)}
                 </details>
 
-                <details>
+                <details open>
                     <summary>Tests</summary>
                     ${items
                     .filter(i => i.type === "test")
                     .map(i => html`
-                            <a href="#">${i.name}</a><br>
+                            <pre>${i.file}:${i.line_number}<code class="language-zig">test ${i.name}</code></pre><br>
                         `)}
                 </details>
             `, document.getElementById("main"));
+
+            Prism.highlightAll();
         }
 
         start();

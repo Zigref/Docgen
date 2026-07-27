@@ -45,8 +45,8 @@ int main(int argc, char *argv[])
             std::stringstream buffer;
             buffer << file.rdbuf();
 
-            const char* result = parse(buffer.str().c_str());
-            nlohmann::json as_json =  nlohmann::json::parse(result);
+            const char *result = parse(buffer.str().c_str());
+            nlohmann::json as_json = nlohmann::json::parse(result);
 
             final_results[entry.path()] = as_json;
         }
