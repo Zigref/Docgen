@@ -5,6 +5,9 @@
   <title></title>
 
   <style>
+    .html, body {
+      font-family: Consolas,Monaco,'Andale Mono','Ubuntu Mono',monospace;;
+    }
     .outer-code-holder {
       background-color: #f5f2f0;
       padding:10px 0 0 10px;
@@ -50,7 +53,14 @@
               ${items
           .filter(i => i.type === "test")
           .map(i => html`
-                            <pre>${i.file}:${i.line_number}<code class="language-zig">test ${i.name}</code></pre><br>
+                  <div class="outer-code-holder">
+                    <span>${i.file}:${i.line_number}</span>
+
+                    ${i.comment !== null ? html` 
+                    <pre><code class="language-zig">${i.comment}</code></pre>` : ""}
+                    <pre><code class="language-zig">test ${i.name}</code></pre>
+
+                  </div>
                         `)}
             </details>
             `, document.getElementById("main"));

@@ -17,7 +17,7 @@
 
 const std = @import("std");
 
-pub fn returns_the_comment_before_the_identifier_nullable(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?[]const u8 {
+fn returns_the_comment_before_the_identifier_nullable(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?[]const u8 {
     // firstToken returns the index of the declared token *Inside* the AST.
     const first_token_of_the_identifier_declared = ast.firstToken(decl);
     // ok, now that I got the first
@@ -63,7 +63,7 @@ pub fn returns_the_comment_before_the_identifier_nullable(ast: std.zig.Ast, decl
     return ast.source[index_where_comment_declared..index_where_identifier_declared];
 }
 
-pub fn get_line_number(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) u32 {
+fn get_line_number(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) u32 {
     // get the first token.
     const first_token = ast.firstToken(decl);
     // getting the exact index of the character at which the token is starting.
@@ -73,11 +73,23 @@ pub fn get_line_number(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) u32 {
     return @as(u32, @intCast(std.mem.count(u8, ast.source[0..byte_offset_kind_of_index], "\n"))) + 1;
 }
 
+/// Just noticed that other programming languages
+/// only index the pub/export declared functions.
+fn check_if_declaration_public(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) bool {
+    const first = ast.firstToken(decl);
+
+    return switch (ast.tokenTag(first)) {
+        .keyword_pub,
+        .keyword_export,
+        => true,
+        else => false,
+    };
+}
 const identifier = struct {
     name: []const u8,
     comment: ?[]const u8,
     type: []const u8,
-    signature: []const u8,
+    signature: ?[]const u8,
     line_number: u32,
 };
 
@@ -127,6 +139,9 @@ fn parse_zig(source: [:0]const u8) ![]const u8 {
         const line_number = get_line_number(ast, decl);
         switch (tags[index]) {
             .fn_decl => {
+                if (!check_if_declaration_public(ast, decl)) {
+                    continue;
+                }
                 const proto = data[index].node_and_node[0];
                 const token = ast.nodeMainToken(proto);
                 const name = ast.tokenSlice(token + 1);
@@ -159,13 +174,13 @@ fn parse_zig(source: [:0]const u8) ![]const u8 {
             .test_decl => {
                 const token = ast.nodeMainToken(decl);
                 const name = ast.tokenSlice(token + 1);
-                const signature = ast.getNodeSource(decl);
+                // const signature = ast.getNodeSource(decl);
 
                 the_current_identifier = .{
                     .comment = comment,
                     .name = name,
                     .type = "test",
-                    .signature = signature,
+                    .signature = null,
                     .line_number = line_number,
                 };
             },
