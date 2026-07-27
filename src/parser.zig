@@ -115,6 +115,84 @@ export fn free_zig_string(allocated_string: [*:0]const u8) void {
     allocator.free(std.mem.span(allocated_string));
 }
 
+fn visitDecl(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) !void {
+    if (!check_if_declaration_public(ast, decl)) {
+        return;
+    }
+
+
+    process_declaration(data,tags,  decl: Index, ast: Ast)
+
+    const var_decl = ast.fullVarDecl(decl) orelse return;
+
+    const container = ast.fullContainerDecl(var_decl.ast.init_node) orelse return;
+
+    for (container.ast.members) |member| {
+        try visitDecl(ast, member);
+    }
+}
+
+fn process_declaration(data: anytype, tags: anytype, decl: std.zig.Ast.Node.Index, ast: std.zig.Ast) ?identifier {
+    var identifier_to_return: identifier = undefined;
+    const index = @intFromEnum(decl);
+
+    const comment = returns_the_comment_before_the_identifier_nullable(ast, decl);
+
+    const line_number = get_line_number(ast, decl);
+    switch (tags[index]) {
+        .fn_decl => {
+            if (!check_if_declaration_public(ast, decl)) {
+                return null;
+            }
+            const proto = data[index].node_and_node[0];
+            const token = ast.nodeMainToken(proto);
+            const name = ast.tokenSlice(token + 1);
+            const signature = ast.getNodeSource(proto);
+
+            identifier_to_return = .{
+                .comment = comment,
+                .name = name,
+                .type = "function",
+                .signature = signature,
+                .line_number = line_number,
+            };
+        },
+        // .global_var_decl,
+        // .local_var_decl,
+        // .simple_var_decl,
+        // .aligned_var_decl,
+        // => {
+        //     const token = ast.nodeMainToken(decl);
+        //     const name = ast.tokenSlice(token + 1);
+        //     const signature = ast.getNodeSource(decl);
+
+        //     the_current_identifier = .{
+        //         .comment = comment,
+        //         .name = name,
+        //         .type = "variable",
+        //         .signature = signature,
+        //     };
+        // },
+        .test_decl => {
+            const token = ast.nodeMainToken(decl);
+            const name = ast.tokenSlice(token + 1);
+            // const signature = ast.getNodeSource(decl);
+
+            identifier_to_return = .{
+                .comment = comment,
+                .name = name,
+                .type = "test",
+                .signature = null,
+                .line_number = line_number,
+            };
+        },
+        else => {
+            return null;
+        },
+    }
+    return identifier_to_return;
+}
+
 fn parse_zig(source: [:0]const u8) ![]const u8 {
     var ast = try std.zig.Ast.parse(
         allocator,
@@ -131,67 +209,12 @@ fn parse_zig(source: [:0]const u8) ![]const u8 {
     defer result_to_return.deinit(allocator);
 
     for (ast.rootDecls()) |decl| {
-        var the_current_identifier: identifier = undefined;
-        const index = @intFromEnum(decl);
-
-        const comment = returns_the_comment_before_the_identifier_nullable(ast, decl);
-
-        const line_number = get_line_number(ast, decl);
-        switch (tags[index]) {
-            .fn_decl => {
-                if (!check_if_declaration_public(ast, decl)) {
-                    continue;
-                }
-                const proto = data[index].node_and_node[0];
-                const token = ast.nodeMainToken(proto);
-                const name = ast.tokenSlice(token + 1);
-                const signature = ast.getNodeSource(proto);
-
-                the_current_identifier = .{
-                    .comment = comment,
-                    .name = name,
-                    .type = "function",
-                    .signature = signature,
-                    .line_number = line_number,
-                };
-            },
-            // .global_var_decl,
-            // .local_var_decl,
-            // .simple_var_decl,
-            // .aligned_var_decl,
-            // => {
-            //     const token = ast.nodeMainToken(decl);
-            //     const name = ast.tokenSlice(token + 1);
-            //     const signature = ast.getNodeSource(decl);
-
-            //     the_current_identifier = .{
-            //         .comment = comment,
-            //         .name = name,
-            //         .type = "variable",
-            //         .signature = signature,
-            //     };
-            // },
-            .test_decl => {
-                const token = ast.nodeMainToken(decl);
-                const name = ast.tokenSlice(token + 1);
-                // const signature = ast.getNodeSource(decl);
-
-                the_current_identifier = .{
-                    .comment = comment,
-                    .name = name,
-                    .type = "test",
-                    .signature = null,
-                    .line_number = line_number,
-                };
-            },
-            else => {
-                continue;
-            },
+        if (process_declaration(data, tags, decl, ast)) |res| {
+            try result_to_return.append(
+                allocator,
+                res,
+            );
         }
-        try result_to_return.append(
-            allocator,
-            the_current_identifier,
-        );
     }
 
     const result = try std.json.Stringify.valueAlloc(allocator, result_to_return.items, .{});
