@@ -115,26 +115,38 @@ export fn free_zig_string(allocated_string: [*:0]const u8) void {
     allocator.free(std.mem.span(allocated_string));
 }
 
-fn visitDecl(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) !void {
-    if (!check_if_declaration_public(ast, decl)) {
+fn visitDecl(
+    ast: std.zig.Ast,
+    decl: std.zig.Ast.Node.Index,
+    list: *std.ArrayList(identifier),
+    gpa: std.mem.Allocator,
+) !void {
+    if (!check_if_declaration_public(ast, decl))
         return;
+
+    if (process_declaration(ast, decl)) |r| {
+        try list.append(gpa, r);
     }
-
-
-    process_declaration(data,tags,  decl: Index, ast: Ast)
 
     const var_decl = ast.fullVarDecl(decl) orelse return;
 
-    const container = ast.fullContainerDecl(var_decl.ast.init_node) orelse return;
+    var buffer: [2]std.zig.Ast.Node.Index = undefined;
+
+    const init_node = var_decl.ast.init_node.unwrap() orelse return;
+
+    const container = ast.fullContainerDecl(&buffer, init_node) orelse return;
 
     for (container.ast.members) |member| {
-        try visitDecl(ast, member);
+        try visitDecl(ast, member, list, gpa);
     }
 }
 
-fn process_declaration(data: anytype, tags: anytype, decl: std.zig.Ast.Node.Index, ast: std.zig.Ast) ?identifier {
+fn process_declaration(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?identifier {
     var identifier_to_return: identifier = undefined;
     const index = @intFromEnum(decl);
+
+    const tags = ast.nodes.items(.tag);
+    const data = ast.nodes.items(.data);
 
     const comment = returns_the_comment_before_the_identifier_nullable(ast, decl);
 
@@ -202,19 +214,17 @@ fn parse_zig(source: [:0]const u8) ![]const u8 {
 
     defer ast.deinit(allocator);
 
-    const tags = ast.nodes.items(.tag);
-    const data = ast.nodes.items(.data);
-
     var result_to_return: std.ArrayList(identifier) = .empty;
     defer result_to_return.deinit(allocator);
 
     for (ast.rootDecls()) |decl| {
-        if (process_declaration(data, tags, decl, ast)) |res| {
-            try result_to_return.append(
-                allocator,
-                res,
-            );
-        }
+        // if (process_declaration(ast, decl)) |res| {
+        //     try result_to_return.append(
+        //         allocator,
+        //         res,
+        //     );
+        // }
+        try visitDecl(ast, decl, &result_to_return, allocator);
     }
 
     const result = try std.json.Stringify.valueAlloc(allocator, result_to_return.items, .{});
