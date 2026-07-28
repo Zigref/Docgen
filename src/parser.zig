@@ -141,6 +141,36 @@ fn visitDecl(
     }
 }
 
+fn process_declaration_only_test(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?identifier {
+    var identifier_to_return: identifier = undefined;
+    const index = @intFromEnum(decl);
+
+    const tags = ast.nodes.items(.tag);
+
+    const comment = returns_the_comment_before_the_identifier_nullable(ast, decl);
+
+    const line_number = get_line_number(ast, decl);
+    switch (tags[index]) {
+        .test_decl => {
+            const token = ast.nodeMainToken(decl);
+            const name = ast.tokenSlice(token + 1);
+            // const signature = ast.getNodeSource(decl);
+
+            identifier_to_return = .{
+                .comment = comment,
+                .name = name,
+                .type = "test",
+                .signature = null,
+                .line_number = line_number,
+            };
+        },
+        else => {
+            return null;
+        },
+    }
+    return identifier_to_return;
+}
+
 fn process_declaration(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?identifier {
     var identifier_to_return: identifier = undefined;
     const index = @intFromEnum(decl);
@@ -218,12 +248,12 @@ fn parse_zig(source: [:0]const u8) ![]const u8 {
     defer result_to_return.deinit(allocator);
 
     for (ast.rootDecls()) |decl| {
-        // if (process_declaration(ast, decl)) |res| {
-        //     try result_to_return.append(
-        //         allocator,
-        //         res,
-        //     );
-        // }
+        if (process_declaration_only_test(ast, decl)) |res| {
+            try result_to_return.append(
+                allocator,
+                res,
+            );
+        }
         try visitDecl(ast, decl, &result_to_return, allocator);
     }
 
