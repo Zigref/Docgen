@@ -10,8 +10,9 @@ import "prismjs/components/prism-zig";
 function FunctionComponentView({
     main_package_name,
     function_obj,
+    file_name,
     onBack,
-}, file_name) {
+}) {
     useEffect(() => {
         Prism.highlightAll();
     }, [function_obj]);
@@ -21,8 +22,12 @@ function FunctionComponentView({
             <button onClick={onBack}>Back</button>
 
             <h1>Package {main_package_name}</h1>
-            <h2>Function <span style={{ color: "#0e7496" }}>{function_obj.name}</span></h2>
-            <h3>File <span style={{ color: "#0e7496" }}>{file_name}</span>:<span style={{ color: "#0e7496" }}>{function_obj.line_number}</span></h3>
+            <h2>
+                Function <span style={{ color: "#0e7496" }}>{function_obj.name}</span>
+            </h2>
+            <h3>
+                File <span style={{ color: "#0e7496" }}>{file_name}</span>:<span style={{ color: "#0e7496" }}>{function_obj.line_number}</span>
+            </h3>
 
             <a href="">Source code</a>
 
@@ -84,7 +89,10 @@ function App() {
                                         className="function_name"
                                         onClick={(e) => {
                                             e.preventDefault();
-                                            setSelectedFunction(x);
+                                            setSelectedFunction({
+                                                function_obj: x,
+                                                file_name,
+                                            });
                                             setShowNormalView(false);
                                         }}
                                     >
@@ -122,7 +130,8 @@ function App() {
     return (
         <FunctionComponentView
             main_package_name={main_package_name}
-            function_obj={selectedFunction}
+            function_obj={selectedFunction.function_obj}
+            file_name={selectedFunction.file_name}
             onBack={() => setShowNormalView(true)}
         />
     );
