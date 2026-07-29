@@ -1,79 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-
 <head>
-  <title></title>
-
-  <style>
-    .html, body {
-      font-family: Consolas,Monaco,'Andale Mono','Ubuntu Mono',monospace;;
-    }
-    .outer-code-holder {
-      background-color: #f5f2f0;
-      padding:10px 0 0 10px;
-      border-radius: 20px;
-    }
-  </style>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs/themes/prism.min.css">
-
-  <script src="https://cdn.jsdelivr.net/npm/prismjs/prism.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismjs/components/prism-zig.min.js"></script>
-  <script type="module">
-    import { html, render } from "https://unpkg.com/lit-html?module";
-
-    async function start() {
-      const data = await fetch("/template.json").then(r => r.json());
-      const items = Object.entries(data).flatMap(([file, items]) =>
-        items.map(item => ({ ...item, file }))
-      );
-
-      render(html`
-                <h1>gh/zigistry/zigref</h1>
-
-                <input type="search"></input>
-                <input type="button" value="search"></input>
-                <details open>
-                    <summary>Functions</summary>
-                    ${items
-          .filter(i => i.type === "function")
-          .map(i => html`
-                  <div class="outer-code-holder">
-                    <span>${i.file}:${i.line_number}</span>
-
-                    ${i.comment !== null ? html` 
-                    <pre><code class="language-zig">${i.comment}</code></pre>` : ""}
-                    <pre><code class="language-zig">${i.signature}</code></pre>
-
-                  </div>
-                  `)}
-                </details >
-
-            <details open>
-              <summary>Tests</summary>
-              ${items
-          .filter(i => i.type === "test")
-          .map(i => html`
-                  <div class="outer-code-holder">
-                    <span>${i.file}:${i.line_number}</span>
-
-                    ${i.comment !== null ? html` 
-                    <pre><code class="language-zig">${i.comment}</code></pre>` : ""}
-                    <pre><code class="language-zig">test ${i.name}</code></pre>
-
-                  </div>
-                        `)}
-            </details>
-            `, document.getElementById("main"));
-
-      Prism.highlightAll();
-    }
-
-    start();
-  </script>
+    <meta charset="UTF-8">
+    <title>App</title>
+    <link rel="stylesheet" href="/main.css"/>
 </head>
-
 <body>
-  <div id="main"></div>
-</body>
+    <div id="app"></div>
 
+    <script type="module" src="/main.jsx"></script>
+</body>
 </html>
