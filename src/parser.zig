@@ -60,7 +60,23 @@ fn returns_the_comment_before_the_identifier_nullable(ast: std.zig.Ast, decl: st
     // the tokenStart returns the starting character index of the token you are at.
     const index_where_identifier_declared = ast.tokenStart(first_token_of_the_identifier_declared);
     const index_where_comment_declared = ast.tokenStart(the_token_from_which_the_comment_starts);
-    return ast.source[index_where_comment_declared..index_where_identifier_declared];
+    const comment_as_source_code = ast.source[index_where_comment_declared..index_where_identifier_declared];
+
+    var splitted_lines = std.mem.splitScalar(u8, comment_as_source_code, '\n');
+
+    var resultant_comment: std.ArrayList(u8) = .empty;
+
+    while (splitted_lines.next()) |next_line| {
+        if (std.mem.startsWith(u8, next_line, "///")) {
+            resultant_comment.appendSlice(allocator, next_line[3..]) catch return null;
+        } else if (std.mem.startsWith(u8, next_line, "//!")) {
+            resultant_comment.appendSlice(allocator, next_line[3..]) catch return null;
+        } else if (std.mem.startsWith(u8, next_line, "//")) {
+            resultant_comment.appendSlice(allocator, next_line[3..]) catch return null;
+        }
+    }
+
+    return resultant_comment.toOwnedSlice(allocator) catch return null;
 }
 
 fn get_line_number(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) u32 {
@@ -258,6 +274,11 @@ fn parse_zig(source: [:0]const u8) ![]const u8 {
     }
 
     const result = try std.json.Stringify.valueAlloc(allocator, result_to_return.items, .{});
+    for (0..result_to_return.items.len) |i| {
+        if (result_to_return.items[i].comment) |c| {
+            allocator.free(c);
+        }
+    }
 
     return result;
 }
