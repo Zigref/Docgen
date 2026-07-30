@@ -58,42 +58,55 @@ function HomeComponent({
     <>
       <h1>Package {main_package_name}</h1>
 
-      <h2>Documentation:</h2>
+      <article class="card">
+        <header>
+          <h3>Documentation</h3>
+        </header>
+        <footer>
 
-      <hr />
+        </footer>
+      </article>
 
-      <h2>Functions:</h2>
 
-      {documentation.map(([file_name, file_data]) =>
-        file_data.map((x, index) => (
-          <React.Fragment key={`${file_name}-${index}`}>
-            {x.type === "function" && (
-              <>
-                <a
-                  href="#"
-                  className="function_name"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setSelectedFunction({
-                      function_obj: x,
-                      file_name,
-                    });
-                    setShowNormalView(false);
-                  }}
-                >
-                  {x.name}
-                </a>
-                <br />
-              </>
-            )}
-          </React.Fragment>
-        )),
-      )}
 
-      <hr />
+      <article class="card">
+        <header>
+          <h3>Functions</h3>
+        </header>
+        <footer>
+
+          {documentation.map(([file_name, file_data]) =>
+            file_data.map((x, index) => (
+              <React.Fragment key={`${file_name}-${index}`}>
+                {x.type === "function" && (
+                  <>
+                    <a
+                      href="#"
+                      className="function_name"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setSelectedFunction({
+                          function_obj: x,
+                          file_name,
+                        });
+                        setShowNormalView(false);
+                      }}
+                    >
+                      {x.name}
+                    </a>
+                    <br />
+                  </>
+                )}
+              </React.Fragment>
+            )),
+          )}
+        </footer>
+      </article>
+
 
       <h2>Tests:</h2>
 
+      <hr />
       {documentation.map(([file_name, file_data]) =>
         file_data.map((x, index) => (
           <React.Fragment key={`test-${file_name}-${index}`}>
@@ -108,6 +121,18 @@ function HomeComponent({
           </React.Fragment>
         )),
       )}
+    </>
+  );
+}
+
+function Navbar() {
+  return (
+    <><article class="card navbar">
+      <header class="two">
+        <h2>ZigRef</h2>
+        <h5>By Zigistry</h5>
+      </header>
+    </article>
     </>
   );
 }
@@ -135,23 +160,29 @@ function App() {
 
   if (showNormalView) {
     return (
-      <HomeComponent
-        main_package_name={main_package_name}
-        documentation={documentation}
-        setSelectedFunction={setSelectedFunction}
-        setShowNormalView={setShowNormalView}
-      />
+      <>
+        <Navbar />
+        <HomeComponent
+          main_package_name={main_package_name}
+          documentation={documentation}
+          setSelectedFunction={setSelectedFunction}
+          setShowNormalView={setShowNormalView}
+        />
+      </>
+    );
+  } else {
+    return (
+      <>
+        <Navbar/>
+        <FunctionComponentView
+          main_package_name={main_package_name}
+          function_obj={selectedFunction.function_obj}
+          file_name={selectedFunction.file_name}
+          onBack={() => setShowNormalView(true)}
+        />
+      </>
     );
   }
-
-  return (
-    <FunctionComponentView
-      main_package_name={main_package_name}
-      function_obj={selectedFunction.function_obj}
-      file_name={selectedFunction.file_name}
-      onBack={() => setShowNormalView(true)}
-    />
-  );
 }
 
 createRoot(document.getElementById("app")).render(<App />);
