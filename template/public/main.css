@@ -1,3 +1,12 @@
-html, body {
-    margin:20px;
+html,
+body {
+    margin: 20px;
+}
+.main_hr {
+    border: none;
+    border-top: 2px dotted #000;
+    color: #fff;
+    background-color: #fff;
+    height: 1px;
+    margin: 0 0 20px 0;
 }

@@ -19,30 +19,40 @@ function FunctionComponentView({
 
   return (
     <>
-      <button onClick={onBack}>Back</button>
-
       <h1>Package {main_package_name}</h1>
+      <hr className="main_hr" />
+
+      <button onClick={onBack}>Back</button>
       <h2>
         Function <span style={{ color: "#0e7496" }}>{function_obj.name}</span>
+        &nbsp;<a href="#">[src]</a>
       </h2>
-      <h3>
-        File <span style={{ color: "#0e7496" }}>{file_name}</span>:
-        <span style={{ color: "#0e7496" }}>{function_obj.line_number}</span>
-      </h3>
 
-      <a href="">Source code</a>
-
-      <pre>
-        <code className="language-zig">
-          {(function_obj.signature ?? "").trim()}
-        </code>
-      </pre>
+      <article className="card">
+        <header>
+          <h3>
+            File <span style={{ color: "#0e7496" }}>{file_name}</span>:
+            <span style={{ color: "#0e7496" }}>{function_obj.line_number}</span>
+          </h3>
+        </header>
+        <footer>
+          <pre>
+            <code className="language-zig">
+              {(function_obj.signature ?? "").trim()}
+            </code>
+          </pre>
+        </footer>
+      </article>
 
       {function_obj.comment && (
-        <>
-          <h3>Comment</h3>
-          <pre>{function_obj.comment}</pre>
-        </>
+        <article className="card">
+          <header>
+            <h3>Comment</h3>
+          </header>
+          <footer>
+            {function_obj.comment}
+          </footer>
+        </article>
       )}
     </>
   );
@@ -58,23 +68,20 @@ function HomeComponent({
     <>
       <h1>Package {main_package_name}</h1>
 
+      <hr className="main_hr" />
+
       <article class="card">
         <header>
           <h3>Documentation</h3>
         </header>
-        <footer>
-
-        </footer>
+        <footer></footer>
       </article>
-
-
 
       <article class="card">
         <header>
           <h3>Functions</h3>
         </header>
         <footer>
-
           {documentation.map(([file_name, file_data]) =>
             file_data.map((x, index) => (
               <React.Fragment key={`${file_name}-${index}`}>
@@ -103,36 +110,40 @@ function HomeComponent({
         </footer>
       </article>
 
-
-      <h2>Tests:</h2>
-
-      <hr />
-      {documentation.map(([file_name, file_data]) =>
-        file_data.map((x, index) => (
-          <React.Fragment key={`test-${file_name}-${index}`}>
-            {x.type === "test" && (
-              <>
-                <a href="#" className="function_name">
-                  {x.name}
-                </a>
-                <br />
-              </>
-            )}
-          </React.Fragment>
-        )),
-      )}
+      <article class="card">
+        <header>
+          <h3>Tests</h3>
+        </header>
+        <footer>
+          {documentation.map(([file_name, file_data]) =>
+            file_data.map((x, index) => (
+              <React.Fragment key={`test-${file_name}-${index}`}>
+                {x.type === "test" && (
+                  <>
+                    <a href="#" className="function_name">
+                      {x.name}
+                    </a>
+                    <br />
+                  </>
+                )}
+              </React.Fragment>
+            )),
+          )}
+        </footer>
+      </article>
     </>
   );
 }
 
 function Navbar() {
   return (
-    <><article class="card navbar">
-      <header class="two">
-        <h2>ZigRef</h2>
-        <h5>By Zigistry</h5>
-      </header>
-    </article>
+    <>
+      <article class="card navbar">
+        <header class="two">
+          <h2>ZigRef</h2>
+          <h5>By Zigistry</h5>
+        </header>
+      </article>
     </>
   );
 }
@@ -173,7 +184,7 @@ function App() {
   } else {
     return (
       <>
-        <Navbar/>
+        <Navbar />
         <FunctionComponentView
           main_package_name={main_package_name}
           function_obj={selectedFunction.function_obj}
