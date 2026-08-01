@@ -101,12 +101,13 @@ fn check_if_declaration_public(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) b
         else => false,
     };
 }
-const identifier = struct {
+pub const identifier = struct {
     name: []const u8,
     comment: ?[]const u8,
     type: []const u8,
     signature: ?[]const u8,
     line_number: u32,
+    pub fn tester() void {}
 };
 
 const allocator = std.heap.c_allocator;
@@ -187,6 +188,28 @@ fn process_declaration_only_test(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index)
     return identifier_to_return;
 }
 
+fn returns_source_inside_struct_body_till_the_key_value_pairs(
+    ast: std.zig.Ast,
+    init_node: std.zig.Ast.Node.Index,
+    container: std.zig.Ast.full.ContainerDecl,
+) []const u8 {
+    var open_brace_token = container.ast.main_token + 1;
+    while (ast.tokenTag(open_brace_token) != .l_brace) : (open_brace_token += 1) {}
+
+    const source_starts_from = ast.tokenStart(open_brace_token) + 1;
+
+    var end_offset = ast.tokenStart(ast.lastToken(init_node));
+
+    for (container.ast.members) |member| {
+        if (ast.fullVarDecl(member) == null and ast.fullContainerField(member) == null) {
+            end_offset = ast.tokenStart(ast.firstToken(member));
+            break;
+        }
+    }
+
+    return ast.source[source_starts_from..end_offset];
+}
+
 fn process_declaration(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?identifier {
     var identifier_to_return: identifier = undefined;
     const index = @intFromEnum(decl);
@@ -232,9 +255,16 @@ fn process_declaration(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?identifi
             const container = ast.fullContainerDecl(&buffer, init_node) orelse return null;
 
             if (ast.tokenTag(container.ast.main_token) == .keyword_struct) {
-                std.debug.print("Found struct!\n", .{});
-            }
+                const signature = returns_source_inside_struct_body_till_the_key_value_pairs(ast, init_node, container);
 
+                return identifier{
+                    .comment = comment,
+                    .name = name,
+                    .type = "struct",
+                    .signature = signature,
+                    .line_number = line_number,
+                };
+            }
             const signature = ast.getNodeSource(decl);
 
             identifier_to_return = .{
