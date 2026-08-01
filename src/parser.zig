@@ -215,22 +215,36 @@ fn process_declaration(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?identifi
                 .line_number = line_number,
             };
         },
-        // .global_var_decl,
-        // .local_var_decl,
-        // .simple_var_decl,
-        // .aligned_var_decl,
-        // => {
-        //     const token = ast.nodeMainToken(decl);
-        //     const name = ast.tokenSlice(token + 1);
-        //     const signature = ast.getNodeSource(decl);
+        .global_var_decl,
+        .local_var_decl,
+        .simple_var_decl,
+        .aligned_var_decl,
+        => {
+            const token = ast.nodeMainToken(decl);
+            const name = ast.tokenSlice(token + 1);
 
-        //     the_current_identifier = .{
-        //         .comment = comment,
-        //         .name = name,
-        //         .type = "variable",
-        //         .signature = signature,
-        //     };
-        // },
+            const var_decl = ast.fullVarDecl(decl) orelse return null;
+
+            const init_node = var_decl.ast.init_node.unwrap() orelse return null;
+
+            var buffer: [2]std.zig.Ast.Node.Index = undefined;
+
+            const container = ast.fullContainerDecl(&buffer, init_node) orelse return null;
+
+            if (ast.tokenTag(container.ast.main_token) == .keyword_struct) {
+                std.debug.print("Found struct!\n", .{});
+            }
+
+            const signature = ast.getNodeSource(decl);
+
+            identifier_to_return = .{
+                .comment = comment,
+                .name = name,
+                .type = "variable",
+                .signature = signature,
+                .line_number = line_number,
+            };
+        },
         .test_decl => {
             const token = ast.nodeMainToken(decl);
             const name = ast.tokenSlice(token + 1);
