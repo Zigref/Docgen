@@ -7,15 +7,46 @@ import Prism from "prismjs";
 import "prismjs/themes/prism-okaidia.css";
 import "prismjs/components/prism-zig";
 
-function FunctionComponentView({
-  main_package_name,
-  function_obj,
-  file_name,
-  onBack,
-}) {
+function SectionCard({ title, type, documentation, onSelect }) {
+  return (
+    <article className="card">
+      <header>
+        <h3>{title}</h3>
+      </header>
+      <footer>
+        {documentation
+          .flatMap(([file_name, file_data]) =>
+            file_data.map((x, index) => ({ file_name, x, index })),
+          )
+          .filter(({ x }) => x.type === type)
+          .map(({ file_name, x, index }) => (
+            <React.Fragment key={`${type}-${file_name}-${index}`}>
+              <a
+                href="#"
+                className="function_name"
+                onClick={
+                  onSelect
+                    ? (e) => {
+                        e.preventDefault();
+                        onSelect(x, file_name);
+                      }
+                    : undefined
+                }
+              >
+                {x.name}
+              </a>
+              <br />
+            </React.Fragment>
+          ))}
+      </footer>
+    </article>
+  );
+}
+
+function DetailView({ main_package_name, type_label, obj, file_name, onBack }) {
   useEffect(() => {
     Prism.highlightAll();
-  }, [function_obj]);
+  }, [obj]);
 
   return (
     <>
@@ -24,7 +55,7 @@ function FunctionComponentView({
 
       <button onClick={onBack}>Back</button>
       <h2>
-        Function <span style={{ color: "#0e7496" }}>{function_obj.name}</span>
+        {type_label} <span style={{ color: "#0e7496" }}>{obj.name}</span>
         &nbsp;<a href="#">[src]</a>
       </h2>
 
@@ -32,26 +63,22 @@ function FunctionComponentView({
         <header>
           <h3>
             File <span style={{ color: "#0e7496" }}>{file_name}</span>:
-            <span style={{ color: "#0e7496" }}>{function_obj.line_number}</span>
+            <span style={{ color: "#0e7496" }}>{obj.line_number}</span>
           </h3>
         </header>
         <footer>
           <pre>
-            <code className="language-zig">
-              {(function_obj.signature ?? "").trim()}
-            </code>
+            <code className="language-zig">{(obj.signature ?? "").trim()}</code>
           </pre>
         </footer>
       </article>
 
-      {function_obj.comment && (
+      {obj.comment && (
         <article className="card">
           <header>
             <h3>Comment</h3>
           </header>
-          <footer>
-            {function_obj.comment}
-          </footer>
+          <footer>{obj.comment}</footer>
         </article>
       )}
     </>
@@ -62,6 +89,7 @@ function HomeComponent({
   main_package_name,
   documentation,
   setSelectedFunction,
+  setSelectedStruct,
   setShowNormalView,
 }) {
   return (
@@ -70,67 +98,36 @@ function HomeComponent({
 
       <hr className="main_hr" />
 
-      <article class="card">
+      <article className="card">
         <header>
           <h3>Documentation</h3>
         </header>
         <footer></footer>
       </article>
 
-      <article class="card">
-        <header>
-          <h3>Functions</h3>
-        </header>
-        <footer>
-          {documentation.map(([file_name, file_data]) =>
-            file_data.map((x, index) => (
-              <React.Fragment key={`${file_name}-${index}`}>
-                {x.type === "function" && (
-                  <>
-                    <a
-                      href="#"
-                      className="function_name"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setSelectedFunction({
-                          function_obj: x,
-                          file_name,
-                        });
-                        setShowNormalView(false);
-                      }}
-                    >
-                      {x.name}
-                    </a>
-                    <br />
-                  </>
-                )}
-              </React.Fragment>
-            )),
-          )}
-        </footer>
-      </article>
+      <SectionCard
+        title="Functions"
+        type="function"
+        documentation={documentation}
+        onSelect={(x, file_name) => {
+          setSelectedFunction({ function_obj: x, file_name });
+          setSelectedStruct(null);
+          setShowNormalView(false);
+        }}
+      />
 
-      <article class="card">
-        <header>
-          <h3>Tests</h3>
-        </header>
-        <footer>
-          {documentation.map(([file_name, file_data]) =>
-            file_data.map((x, index) => (
-              <React.Fragment key={`test-${file_name}-${index}`}>
-                {x.type === "test" && (
-                  <>
-                    <a href="#" className="function_name">
-                      {x.name}
-                    </a>
-                    <br />
-                  </>
-                )}
-              </React.Fragment>
-            )),
-          )}
-        </footer>
-      </article>
+      <SectionCard
+        title="Structs"
+        type="struct"
+        documentation={documentation}
+        onSelect={(x, file_name) => {
+          setSelectedStruct({ struct_obj: x, file_name });
+          setSelectedFunction(null);
+          setShowNormalView(false);
+        }}
+      />
+
+      <SectionCard title="Tests" type="test" documentation={documentation} />
     </>
   );
 }
@@ -138,8 +135,8 @@ function HomeComponent({
 function Navbar() {
   return (
     <>
-      <article class="card navbar">
-        <header class="two">
+      <article className="card navbar">
+        <header className="two">
           <h2>ZigRef</h2>
           <h5>By Zigistry</h5>
         </header>
@@ -154,6 +151,7 @@ function App() {
   const [documentation, setDocumentation] = useState([]);
   const [showNormalView, setShowNormalView] = useState(true);
   const [selectedFunction, setSelectedFunction] = useState(null);
+  const [selectedStruct, setSelectedStruct] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -177,7 +175,21 @@ function App() {
           main_package_name={main_package_name}
           documentation={documentation}
           setSelectedFunction={setSelectedFunction}
+          setSelectedStruct={setSelectedStruct}
           setShowNormalView={setShowNormalView}
+        />
+      </>
+    );
+  } else if (selectedStruct) {
+    return (
+      <>
+        <Navbar />
+        <DetailView
+          main_package_name={main_package_name}
+          type_label="Struct"
+          obj={selectedStruct.struct_obj}
+          file_name={selectedStruct.file_name}
+          onBack={() => setShowNormalView(true)}
         />
       </>
     );
@@ -185,9 +197,10 @@ function App() {
     return (
       <>
         <Navbar />
-        <FunctionComponentView
+        <DetailView
           main_package_name={main_package_name}
-          function_obj={selectedFunction.function_obj}
+          type_label="Function"
+          obj={selectedFunction.function_obj}
           file_name={selectedFunction.file_name}
           onBack={() => setShowNormalView(true)}
         />
