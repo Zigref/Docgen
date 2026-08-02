@@ -7,6 +7,7 @@ extern "C"
 {
     const char *parse(const char *_source);
     void free_zig_string(const char *_string_to_free);
+    const char *fetch_top_level_documentation(const char *_source);
 }
 
 int main(int argc, char *argv[])
@@ -19,7 +20,11 @@ int main(int argc, char *argv[])
     }
     std::filesystem::path input_folder = argv[1];
 
-    nlohmann::json final_results;
+    nlohmann::json file_results;
+
+    bool already_parsed_the_root_file_for_documentation = false;
+
+    std::string top_level_documentation = nullptr;
 
     try
     {
@@ -33,6 +38,28 @@ int main(int argc, char *argv[])
             if (entry.path().extension() != ".zig")
             {
                 continue;
+            }
+
+            if(!already_parsed_the_root_file_for_documentation) {
+                if(entry.path() == "src/root.zig" || entry.path() == "src/lib.zig") {
+                    // means, this file is the one
+                    // which will be the chosen as the main file
+                    // of the library.
+                    // means, it might have the //! thingy at the start.
+                    // hence, I will be using it for the main, top level documentation.
+                    std::ifstream file(entry.path(), std::ios::binary);
+
+                    if (!file)
+                    {
+                        std::cerr << "File that should exist, somehow doesn't exist: " << entry.path() << std::endl;
+                        return 0;
+                    }
+                    std::stringstream buffer;
+                    buffer << file.rdbuf();
+
+                    top_level_documentation = fetch_top_level_documentation(buffer.str().c_str());
+                    already_parsed_the_root_file_for_documentation = true;
+                }
             }
 
             std::ifstream file(entry.path(), std::ios::binary);
@@ -49,7 +76,7 @@ int main(int argc, char *argv[])
             nlohmann::json as_json = nlohmann::json::parse(result);
 
             auto rel = std::filesystem::relative(entry.path(), input_folder);
-            final_results[rel.string()] = as_json;
+            file_results[rel.string()] = as_json;
         }
     }
     catch (std::exception &e)
@@ -58,7 +85,14 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    std::cout << final_results.dump() << std::endl;
+
+
+    nlohmann::json final_results;
+    nlohmann::json config;
+    config["commit_hash"] = "";
+    final_results["files"] = file_results;
+    final_results["main_comment"] = top_level_documentation;
+    final_results["config"] = config;
 
     return 0;
 }
