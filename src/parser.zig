@@ -210,6 +210,27 @@ fn returns_source_inside_struct_body_till_the_key_value_pairs(
     return ast.source[source_starts_from..end_offset];
 }
 
+fn from_the_end_of_key_value_pairs_till_the_struct_body_end(
+    ast: std.zig.Ast,
+    init_node: std.zig.Ast.Node.Index,
+    container: std.zig.Ast.full.ContainerDecl,
+) []const u8 {
+    var start_offset = ast.tokenStart(ast.lastToken(init_node));
+
+    for (container.ast.members) |member| {
+        if (ast.fullVarDecl(member) == null and ast.fullContainerField(member) == null) {
+            start_offset = ast.tokenStart(ast.firstToken(member));
+            break;
+        }
+    }
+
+    const close_token = ast.lastToken(init_node);
+    var close_end = ast.tokenStart(close_token) + ast.tokenSlice(close_token).len;
+    close_end -= 1; // becuase of the end }, will cause parsing issues.
+
+    return ast.source[start_offset..close_end];
+}
+
 fn process_declaration(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?identifier {
     var identifier_to_return: identifier = undefined;
     const index = @intFromEnum(decl);
@@ -255,7 +276,28 @@ fn process_declaration(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?identifi
             const container = ast.fullContainerDecl(&buffer, init_node) orelse return null;
 
             if (ast.tokenTag(container.ast.main_token) == .keyword_struct) {
-                const signature = returns_source_inside_struct_body_till_the_key_value_pairs(ast, init_node, container);
+                var signature = returns_source_inside_struct_body_till_the_key_value_pairs(ast, init_node, container);
+                const if_valid_this_should_look_like_a_normal_file = from_the_end_of_key_value_pairs_till_the_struct_body_end(ast, init_node, container);
+
+                const z = allocator.dupeZ(u8, if_valid_this_should_look_like_a_normal_file) catch return null;
+                defer allocator.free(z);
+                const parsed_zig = parse_zig(z) catch return null;
+                defer allocator.free(parsed_zig);
+
+                var signature_buffer: std.ArrayList(u8) = .empty;
+                defer signature_buffer.deinit(allocator);
+                signature_buffer.appendSlice(allocator, signature) catch return null;
+
+                const parsed_identifiers = std.json.parseFromSlice([]identifier, allocator, parsed_zig, .{}) catch return null;
+                defer parsed_identifiers.deinit();
+
+                for (parsed_identifiers.value) |item| {
+                    if (item.signature) |item_signature| {
+                        signature_buffer.appendSlice(allocator, item_signature) catch return null;
+                    }
+                }
+
+                signature = signature_buffer.toOwnedSlice(allocator) catch return null;
 
                 return identifier{
                     .comment = comment,
@@ -321,6 +363,11 @@ fn parse_zig(source: [:0]const u8) ![]const u8 {
     for (0..result_to_return.items.len) |i| {
         if (result_to_return.items[i].comment) |c| {
             allocator.free(c);
+        }
+        if (std.mem.eql(u8, result_to_return.items[i].type, "struct")) {
+            if (result_to_return.items[i].signature) |s| {
+                allocator.free(s);
+            }
         }
     }
 
