@@ -14,14 +14,15 @@ function SectionCard({ title, type, documentation, onSelect }) {
         <h3>{title}</h3>
       </header>
       <footer>
-        {documentation
-          .flatMap(([file_name, file_data]) =>
-            file_data.map((x, index) => ({ file_name, x, index })),
-          )
-          .filter(({ x }) => x.type === type)
-          .map(({ file_name, x, index }) => (
-            <React.Fragment key={`${type}-${file_name}-${index}`}>
+        <div className="item_grid">
+          {documentation
+            .flatMap(([file_name, file_data]) =>
+              file_data.map((x, index) => ({ file_name, x, index })),
+            )
+            .filter(({ x }) => x.type === type)
+            .map(({ file_name, x, index }) => (
               <a
+                key={`${type}-${file_name}-${index}`}
                 href="#"
                 className="function_name"
                 onClick={
@@ -35,9 +36,8 @@ function SectionCard({ title, type, documentation, onSelect }) {
               >
                 {x.name}
               </a>
-              <br />
-            </React.Fragment>
-          ))}
+            ))}
+        </div>
       </footer>
     </article>
   );

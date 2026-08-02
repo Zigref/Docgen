@@ -48,7 +48,8 @@ int main(int argc, char *argv[])
             const char *result = parse(buffer.str().c_str());
             nlohmann::json as_json = nlohmann::json::parse(result);
 
-            final_results[entry.path()] = as_json;
+            auto rel = std::filesystem::relative(entry.path(), input_folder);
+            final_results[rel.string()] = as_json;
         }
     }
     catch (std::exception &e)
