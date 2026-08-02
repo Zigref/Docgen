@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
             if (line.compare(0, 3, "//!") == 0) {
               // the line is starting with //!
               if (line.length() >= 3) {
-                top_level_documentation += line.substr(3);
+                top_level_documentation += line.substr(3) + '\n';
               }
             } else {
               // means, the line is no more starting with //!

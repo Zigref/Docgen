@@ -66,11 +66,13 @@ function DetailView({ main_package_name, type_label, obj, file_name, onBack }) {
             <span style={{ color: "#0e7496" }}>{obj.line_number}</span>
           </h3>
         </header>
-        <footer>
-          <pre>
-            <code className="language-zig">{(obj.signature ?? "").trim()}</code>
-          </pre>
-        </footer>
+        {obj.signature && (
+          <footer>
+            <pre>
+              <code className="language-zig">{(obj.signature ?? "").trim()}</code>
+            </pre>
+          </footer>
+        )}
       </article>
 
       {obj.comment && (
@@ -88,8 +90,11 @@ function DetailView({ main_package_name, type_label, obj, file_name, onBack }) {
 function HomeComponent({
   main_package_name,
   documentation,
+  top_level_documentation,
+  config,
   setSelectedFunction,
   setSelectedStruct,
+  setSelectedTest,
   setShowNormalView,
 }) {
   return (
@@ -102,7 +107,14 @@ function HomeComponent({
         <header>
           <h3>Documentation</h3>
         </header>
-        <footer></footer>
+        <footer>
+          <pre>{top_level_documentation}</pre>
+          {config && config.commit_hash !== "" && (
+            <div style={{ marginTop: "10px", color: "#555" }}>
+              commit: {config.commit_hash}
+            </div>
+          )}
+        </footer>
       </article>
 
       <SectionCard
@@ -127,7 +139,17 @@ function HomeComponent({
         }}
       />
 
-      <SectionCard title="Tests" type="test" documentation={documentation} />
+      <SectionCard
+        title="Tests"
+        type="test"
+        documentation={documentation}
+        onSelect={(x, file_name) => {
+          setSelectedTest({ test_obj: x, file_name });
+          setSelectedFunction(null);
+          setSelectedStruct(null);
+          setShowNormalView(false);
+        }}
+      />
     </>
   );
 }
@@ -149,9 +171,12 @@ function App() {
   const main_package_name = "gh/zigistry/zigistry";
 
   const [documentation, setDocumentation] = useState([]);
+  const [topLevelDocumentation, setTopLevelDocumentation] = useState("");
+  const [config, setConfig] = useState(null);
   const [showNormalView, setShowNormalView] = useState(true);
   const [selectedFunction, setSelectedFunction] = useState(null);
   const [selectedStruct, setSelectedStruct] = useState(null);
+  const [selectedTest, setSelectedTest] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -159,9 +184,10 @@ function App() {
       const json = await response.json();
 
       console.log(json);
-      console.log(Object.entries(json));
 
-      setDocumentation(Object.entries(json));
+      setDocumentation(Object.entries(json.files));
+      setTopLevelDocumentation(json.top_level_documentation);
+      setConfig(json.config);
     }
 
     load();
@@ -174,8 +200,11 @@ function App() {
         <HomeComponent
           main_package_name={main_package_name}
           documentation={documentation}
+          top_level_documentation={topLevelDocumentation}
+          config={config}
           setSelectedFunction={setSelectedFunction}
           setSelectedStruct={setSelectedStruct}
+          setSelectedTest={setSelectedTest}
           setShowNormalView={setShowNormalView}
         />
       </>
@@ -189,6 +218,19 @@ function App() {
           type_label="Struct"
           obj={selectedStruct.struct_obj}
           file_name={selectedStruct.file_name}
+          onBack={() => setShowNormalView(true)}
+        />
+      </>
+    );
+  } else if (selectedTest) {
+    return (
+      <>
+        <Navbar />
+        <DetailView
+          main_package_name={main_package_name}
+          type_label="Test"
+          obj={selectedTest.test_obj}
+          file_name={selectedTest.file_name}
           onBack={() => setShowNormalView(true)}
         />
       </>
