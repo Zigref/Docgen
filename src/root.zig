@@ -11,11 +11,19 @@
 //! - Parse each one of them.
 //! - Extract all the doc comments, functions, structs,
 //!   and anything that is in the root directory.
-//! - Render it as html to stdout.
-//! - There are __INSERT_ labels in the html file,
-//!   on which I will replace it with the documentation.
+//! - Render it as json to stdout.
+//! - The json would be used to render the json
+//!   as a proper documentation.
 
 const std = @import("std");
+
+pub const AVAILABLE_TYPES = enum(u32) {
+    STRUCT,
+    ENUM,
+    FUNCTION,
+
+    pub fn tester() void {}
+};
 
 fn returns_the_comment_before_the_identifier_nullable(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?[]const u8 {
     // firstToken returns the index of the declared token *Inside* the AST.
@@ -231,6 +239,47 @@ fn from_the_end_of_key_value_pairs_till_the_struct_body_end(
     return ast.source[start_offset..close_end];
 }
 
+fn make_container_identifier(
+    ast: std.zig.Ast,
+    init_node: std.zig.Ast.Node.Index,
+    container: std.zig.Ast.full.ContainerDecl,
+    comment: ?[]const u8,
+    name: []const u8,
+    type_name: []const u8,
+    line_number: u32,
+) ?identifier {
+    var signature = returns_source_inside_struct_body_till_the_key_value_pairs(ast, init_node, container);
+    const if_valid_this_should_look_like_a_normal_file = from_the_end_of_key_value_pairs_till_the_struct_body_end(ast, init_node, container);
+
+    const z = allocator.dupeZ(u8, if_valid_this_should_look_like_a_normal_file) catch return null;
+    defer allocator.free(z);
+    const parsed_zig = parse_zig(z) catch return null;
+    defer allocator.free(parsed_zig);
+
+    var signature_buffer: std.ArrayList(u8) = .empty;
+    defer signature_buffer.deinit(allocator);
+    signature_buffer.appendSlice(allocator, signature) catch return null;
+
+    const parsed_identifiers = std.json.parseFromSlice([]identifier, allocator, parsed_zig, .{}) catch return null;
+    defer parsed_identifiers.deinit();
+
+    for (parsed_identifiers.value) |item| {
+        if (item.signature) |item_signature| {
+            signature_buffer.appendSlice(allocator, item_signature) catch return null;
+        }
+    }
+
+    signature = signature_buffer.toOwnedSlice(allocator) catch return null;
+
+    return identifier{
+        .comment = comment,
+        .name = name,
+        .type = type_name,
+        .signature = signature,
+        .line_number = line_number,
+    };
+}
+
 fn process_declaration(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?identifier {
     var identifier_to_return: identifier = undefined;
     const index = @intFromEnum(decl);
@@ -276,36 +325,10 @@ fn process_declaration(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?identifi
             const container = ast.fullContainerDecl(&buffer, init_node) orelse return null;
 
             if (ast.tokenTag(container.ast.main_token) == .keyword_struct) {
-                var signature = returns_source_inside_struct_body_till_the_key_value_pairs(ast, init_node, container);
-                const if_valid_this_should_look_like_a_normal_file = from_the_end_of_key_value_pairs_till_the_struct_body_end(ast, init_node, container);
-
-                const z = allocator.dupeZ(u8, if_valid_this_should_look_like_a_normal_file) catch return null;
-                defer allocator.free(z);
-                const parsed_zig = parse_zig(z) catch return null;
-                defer allocator.free(parsed_zig);
-
-                var signature_buffer: std.ArrayList(u8) = .empty;
-                defer signature_buffer.deinit(allocator);
-                signature_buffer.appendSlice(allocator, signature) catch return null;
-
-                const parsed_identifiers = std.json.parseFromSlice([]identifier, allocator, parsed_zig, .{}) catch return null;
-                defer parsed_identifiers.deinit();
-
-                for (parsed_identifiers.value) |item| {
-                    if (item.signature) |item_signature| {
-                        signature_buffer.appendSlice(allocator, item_signature) catch return null;
-                    }
-                }
-
-                signature = signature_buffer.toOwnedSlice(allocator) catch return null;
-
-                return identifier{
-                    .comment = comment,
-                    .name = name,
-                    .type = "struct",
-                    .signature = signature,
-                    .line_number = line_number,
-                };
+                return make_container_identifier(ast, init_node, container, comment, name, "struct", line_number);
+            }
+            if (ast.tokenTag(container.ast.main_token) == .keyword_enum) {
+                return make_container_identifier(ast, init_node, container, comment, name, "enum", line_number);
             }
             const signature = ast.getNodeSource(decl);
 
@@ -364,7 +387,9 @@ fn parse_zig(source: [:0]const u8) ![]const u8 {
         if (result_to_return.items[i].comment) |c| {
             allocator.free(c);
         }
-        if (std.mem.eql(u8, result_to_return.items[i].type, "struct")) {
+        if (std.mem.eql(u8, result_to_return.items[i].type, "struct") or
+            std.mem.eql(u8, result_to_return.items[i].type, "enum"))
+        {
             if (result_to_return.items[i].signature) |s| {
                 allocator.free(s);
             }
