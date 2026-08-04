@@ -97,6 +97,7 @@ function HomeComponent({
   setSelectedTest,
   setSelectedUnion,
   setSelectedOpaque,
+  setSelectedEnum,
   setShowNormalView,
 }) {
   return (
@@ -129,6 +130,7 @@ function HomeComponent({
           setSelectedTest(null);
           setSelectedUnion(null);
           setSelectedOpaque(null);
+          setSelectedEnum(null);
           setShowNormalView(false);
         }}
       />
@@ -140,6 +142,22 @@ function HomeComponent({
         onSelect={(x, file_name) => {
           setSelectedStruct({ struct_obj: x, file_name });
           setSelectedFunction(null);
+          setSelectedTest(null);
+          setSelectedUnion(null);
+          setSelectedOpaque(null);
+          setSelectedEnum(null);
+          setShowNormalView(false);
+        }}
+      />
+
+      <SectionCard
+        title="Enums"
+        type="enum"
+        documentation={documentation}
+        onSelect={(x, file_name) => {
+          setSelectedEnum({ enum_obj: x, file_name });
+          setSelectedFunction(null);
+          setSelectedStruct(null);
           setSelectedTest(null);
           setSelectedUnion(null);
           setSelectedOpaque(null);
@@ -157,6 +175,7 @@ function HomeComponent({
           setSelectedStruct(null);
           setSelectedTest(null);
           setSelectedOpaque(null);
+          setSelectedEnum(null);
           setShowNormalView(false);
         }}
       />
@@ -171,6 +190,7 @@ function HomeComponent({
           setSelectedStruct(null);
           setSelectedTest(null);
           setSelectedUnion(null);
+          setSelectedEnum(null);
           setShowNormalView(false);
         }}
       />
@@ -185,6 +205,7 @@ function HomeComponent({
           setSelectedStruct(null);
           setSelectedUnion(null);
           setSelectedOpaque(null);
+          setSelectedEnum(null);
           setShowNormalView(false);
         }}
       />
@@ -217,6 +238,7 @@ function App() {
   const [selectedTest, setSelectedTest] = useState(null);
   const [selectedUnion, setSelectedUnion] = useState(null);
   const [selectedOpaque, setSelectedOpaque] = useState(null);
+  const [selectedEnum, setSelectedEnum] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -247,6 +269,7 @@ function App() {
           setSelectedTest={setSelectedTest}
           setSelectedUnion={setSelectedUnion}
           setSelectedOpaque={setSelectedOpaque}
+          setSelectedEnum={setSelectedEnum}
           setShowNormalView={setShowNormalView}
         />
       </>
@@ -286,6 +309,19 @@ function App() {
           type_label="Union"
           obj={selectedUnion.union_obj}
           file_name={selectedUnion.file_name}
+          onBack={() => setShowNormalView(true)}
+        />
+      </>
+    );
+  } else if (selectedEnum) {
+    return (
+      <>
+        <Navbar />
+        <DetailView
+          main_package_name={main_package_name}
+          type_label="Enum"
+          obj={selectedEnum.enum_obj}
+          file_name={selectedEnum.file_name}
           onBack={() => setShowNormalView(true)}
         />
       </>
