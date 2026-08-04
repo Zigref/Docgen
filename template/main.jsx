@@ -95,6 +95,8 @@ function HomeComponent({
   setSelectedFunction,
   setSelectedStruct,
   setSelectedTest,
+  setSelectedUnion,
+  setSelectedOpaque,
   setShowNormalView,
 }) {
   return (
@@ -124,6 +126,9 @@ function HomeComponent({
         onSelect={(x, file_name) => {
           setSelectedFunction({ function_obj: x, file_name });
           setSelectedStruct(null);
+          setSelectedTest(null);
+          setSelectedUnion(null);
+          setSelectedOpaque(null);
           setShowNormalView(false);
         }}
       />
@@ -135,6 +140,37 @@ function HomeComponent({
         onSelect={(x, file_name) => {
           setSelectedStruct({ struct_obj: x, file_name });
           setSelectedFunction(null);
+          setSelectedTest(null);
+          setSelectedUnion(null);
+          setSelectedOpaque(null);
+          setShowNormalView(false);
+        }}
+      />
+
+      <SectionCard
+        title="Unions"
+        type="union"
+        documentation={documentation}
+        onSelect={(x, file_name) => {
+          setSelectedUnion({ union_obj: x, file_name });
+          setSelectedFunction(null);
+          setSelectedStruct(null);
+          setSelectedTest(null);
+          setSelectedOpaque(null);
+          setShowNormalView(false);
+        }}
+      />
+
+      <SectionCard
+        title="Opaques"
+        type="opaque"
+        documentation={documentation}
+        onSelect={(x, file_name) => {
+          setSelectedOpaque({ opaque_obj: x, file_name });
+          setSelectedFunction(null);
+          setSelectedStruct(null);
+          setSelectedTest(null);
+          setSelectedUnion(null);
           setShowNormalView(false);
         }}
       />
@@ -147,6 +183,8 @@ function HomeComponent({
           setSelectedTest({ test_obj: x, file_name });
           setSelectedFunction(null);
           setSelectedStruct(null);
+          setSelectedUnion(null);
+          setSelectedOpaque(null);
           setShowNormalView(false);
         }}
       />
@@ -177,6 +215,8 @@ function App() {
   const [selectedFunction, setSelectedFunction] = useState(null);
   const [selectedStruct, setSelectedStruct] = useState(null);
   const [selectedTest, setSelectedTest] = useState(null);
+  const [selectedUnion, setSelectedUnion] = useState(null);
+  const [selectedOpaque, setSelectedOpaque] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -205,6 +245,8 @@ function App() {
           setSelectedFunction={setSelectedFunction}
           setSelectedStruct={setSelectedStruct}
           setSelectedTest={setSelectedTest}
+          setSelectedUnion={setSelectedUnion}
+          setSelectedOpaque={setSelectedOpaque}
           setShowNormalView={setShowNormalView}
         />
       </>
@@ -231,6 +273,32 @@ function App() {
           type_label="Test"
           obj={selectedTest.test_obj}
           file_name={selectedTest.file_name}
+          onBack={() => setShowNormalView(true)}
+        />
+      </>
+    );
+  } else if (selectedUnion) {
+    return (
+      <>
+        <Navbar />
+        <DetailView
+          main_package_name={main_package_name}
+          type_label="Union"
+          obj={selectedUnion.union_obj}
+          file_name={selectedUnion.file_name}
+          onBack={() => setShowNormalView(true)}
+        />
+      </>
+    );
+  } else if (selectedOpaque) {
+    return (
+      <>
+        <Navbar />
+        <DetailView
+          main_package_name={main_package_name}
+          type_label="Opaque"
+          obj={selectedOpaque.opaque_obj}
+          file_name={selectedOpaque.file_name}
           onBack={() => setShowNormalView(true)}
         />
       </>

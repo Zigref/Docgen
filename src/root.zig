@@ -21,7 +21,18 @@ pub const AVAILABLE_TYPES = enum(u32) {
     STRUCT,
     ENUM,
     FUNCTION,
+    const testerer = opaque {
+        pub fn tester_inside_opaque() void {}
+    };
+    pub fn tester() void {}
+};
 
+pub const identifier = struct {
+    name: []const u8,
+    comment: ?[]const u8,
+    type: []const u8,
+    signature: ?[]const u8,
+    line_number: u32,
     pub fn tester() void {}
 };
 
@@ -109,14 +120,6 @@ fn check_if_declaration_public(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) b
         else => false,
     };
 }
-pub const identifier = struct {
-    name: []const u8,
-    comment: ?[]const u8,
-    type: []const u8,
-    signature: ?[]const u8,
-    line_number: u32,
-    pub fn tester() void {}
-};
 
 const allocator = std.heap.c_allocator;
 
@@ -330,6 +333,12 @@ fn process_declaration(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?identifi
             if (ast.tokenTag(container.ast.main_token) == .keyword_enum) {
                 return make_container_identifier(ast, init_node, container, comment, name, "enum", line_number);
             }
+            if (ast.tokenTag(container.ast.main_token) == .keyword_union) {
+                return make_container_identifier(ast, init_node, container, comment, name, "union", line_number);
+            }
+            if (ast.tokenTag(container.ast.main_token) == .keyword_opaque) {
+                return make_container_identifier(ast, init_node, container, comment, name, "opaque", line_number);
+            }
             const signature = ast.getNodeSource(decl);
 
             identifier_to_return = .{
@@ -388,7 +397,9 @@ fn parse_zig(source: [:0]const u8) ![]const u8 {
             allocator.free(c);
         }
         if (std.mem.eql(u8, result_to_return.items[i].type, "struct") or
-            std.mem.eql(u8, result_to_return.items[i].type, "enum"))
+            std.mem.eql(u8, result_to_return.items[i].type, "enum") or
+            std.mem.eql(u8, result_to_return.items[i].type, "union") or
+            std.mem.eql(u8, result_to_return.items[i].type, "opaque"))
         {
             if (result_to_return.items[i].signature) |s| {
                 allocator.free(s);
