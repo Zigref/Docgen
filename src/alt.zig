@@ -44,6 +44,21 @@
 
 const std = @import("std");
 
+pub const identifier = struct {
+    name: []const u8,
+    namespace: []const u8,
+    comment: ?[]const u8,
+    type: enum {
+        constant,
+        function,
+        @"struct",
+        @"opaque",
+        @"union",
+    },
+    partial_definition: ?[]const u8,
+    line_number: u32,
+};
+
 /// This function replaces body of every single
 /// function with {}
 ///
@@ -160,6 +175,58 @@ pub fn capture_doc_comment(allocator: std.mem.Allocator, ast: std.zig.Ast, decl:
     }
 
     return resultant_comment.toOwnedSlice(allocator) catch return null;
+}
+
+pub fn process_declaration_only_test(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?identifier {
+    var identifier_to_return: identifier = undefined;
+    const index = @intFromEnum(decl);
+
+    const tags = ast.nodes.items(.tag);
+
+    const comment = returns_the_comment_before_the_identifier_nullable(ast, decl);
+
+    const line_number = get_line_number(ast, decl);
+    switch (tags[index]) {
+        .test_decl => {
+            const token = ast.nodeMainToken(decl);
+            const name = ast.tokenSlice(token + 1);
+            // const signature = ast.getNodeSource(decl);
+
+            identifier_to_return = .{
+                .comment = comment,
+                .name = name,
+                .type = "test",
+                .signature = null,
+                .line_number = line_number,
+            };
+        },
+        else => {
+            return null;
+        },
+    }
+    return identifier_to_return;
+}
+
+pub fn __main(allocator: std.mem.Allocator, source: [:0]const u8) !void {
+    // First, I will remove all function bodies from this source code.
+    const sanitized = try make_all_function_body_empty(allocator, source);
+}
+
+export fn parse_zig(_source: [*:0]const u8) [*:0]const u8 {
+    const source = std.mem.span(_source);
+
+    const res = __main(source) catch {
+        const allocated_string = allocator.dupeZ(u8, "Error while parsing.") catch @panic("No more RAM available");
+        return allocated_string;
+    };
+
+    const allocated_string = allocator.dupeZ(u8, res) catch @panic("No more RAM available.");
+    allocator.free(res);
+    return allocated_string.ptr;
+}
+
+export fn free_zig_string(allocated_string: [*:0]const u8) void {
+    allocator.free(std.mem.span(allocated_string));
 }
 
 test "make_all_function_body_empty" {
