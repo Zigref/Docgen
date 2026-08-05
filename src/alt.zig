@@ -177,13 +177,13 @@ pub fn capture_doc_comment(allocator: std.mem.Allocator, ast: std.zig.Ast, decl:
     return resultant_comment.toOwnedSlice(allocator) catch return null;
 }
 
-pub fn process_declaration_only_test(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?identifier {
+pub fn process_declaration(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?identifier {
     var identifier_to_return: identifier = undefined;
     const index = @intFromEnum(decl);
 
     const tags = ast.nodes.items(.tag);
 
-    const comment = returns_the_comment_before_the_identifier_nullable(ast, decl);
+    const comment = capture_doc_comment(ast, decl);
 
     const line_number = get_line_number(ast, decl);
     switch (tags[index]) {
@@ -207,9 +207,35 @@ pub fn process_declaration_only_test(ast: std.zig.Ast, decl: std.zig.Ast.Node.In
     return identifier_to_return;
 }
 
+pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, namespace: []const u8) !std.ArrayList(identifier) {
+    var ast = try std.zig.Ast.parse(
+        allocator,
+        sanitized,
+        .zig,
+    );
+
+    defer ast.deinit(allocator);
+
+    var result_to_return: std.ArrayList(identifier) = .empty;
+    defer result_to_return.deinit(allocator);
+
+    for (ast.rootDecls()) |decl| {
+        if (process_declaration(ast, decl)) |res| {
+            try result_to_return.append(
+                allocator,
+                res,
+            );
+        }
+        try recursive_parse(ast, decl, &result_to_return, allocator);
+    }
+}
+
 pub fn __main(allocator: std.mem.Allocator, source: [:0]const u8) !void {
     // First, I will remove all function bodies from this source code.
     const sanitized = try make_all_function_body_empty(allocator, source);
+
+    // Now i will start the parsing process
+    recursive_parse(allocator, sanitized, "");
 }
 
 export fn parse_zig(_source: [*:0]const u8) [*:0]const u8 {
