@@ -67,7 +67,7 @@ pub const identifier = struct {
 ///     source: Zig source code
 /// Returns:
 ///     Zig source code with bodies of all functions replaced with {}
-pub fn make_all_function_body_empty(gpa: std.mem.Allocator, source: [:0]const u8) ![:0]const u8 {
+fn make_all_function_body_empty(gpa: std.mem.Allocator, source: [:0]const u8) ![:0]const u8 {
     var ast = try std.zig.Ast.parse(gpa, source, .zig);
     defer ast.deinit(gpa);
 
@@ -115,7 +115,7 @@ pub fn make_all_function_body_empty(gpa: std.mem.Allocator, source: [:0]const u8
 ///     decl: the declaration whose comment would be returned.
 /// Returns:
 ///     The comment of the declaration or null if no comment present.
-pub fn capture_doc_comment(allocator: std.mem.Allocator, ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?[]const u8 {
+fn capture_doc_comment(allocator: std.mem.Allocator, ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?[]const u8 {
     // firstToken returns the index of the declared token *Inside* the AST.
     const first_token_of_the_identifier_declared = ast.firstToken(decl);
     // ok, now that I got the first
@@ -190,6 +190,62 @@ fn parser_should_parse_this_declaration(ast: std.zig.Ast, decl: std.zig.Ast.Node
     };
 }
 
+// This function returns a container's source code as two seperate components.
+//
+// For example if this is a struct:
+//
+// struct/enum/unique/opaque {
+//     field1 : type,
+//     field2 : type,
+//     field3 : type,
+//
+//     pub const some_constant = value;
+//     pub fn some_method_1(){...}
+//     pub fn some_method_2(){...}
+// }
+//
+// This returns all the fields as .fields
+// and all the other things as .members
+// Only source code.
+fn returns_container_source_as_2_components(
+    ast: std.zig.Ast,
+    init_node: std.zig.Ast.Node.Index,
+    container: std.zig.Ast.full.ContainerDecl,
+) struct {
+    fields: ?[]const u8,
+    members: ?[]const u8,
+} {
+    // the main node is basically the const/var word.
+    var open_brace_token = container.ast.main_token + 1;
+    // we will loop till we reach l brace.
+    while (ast.tokenTag(open_brace_token) != .l_brace) : (open_brace_token += 1) {}
+
+    // obviously the code starts after the {.
+    const source_starts_from = ast.tokenStart(open_brace_token) + 1;
+
+    // The end of the container body i.e }.
+    var split_offset = ast.tokenStart(ast.lastToken(init_node));
+
+    var found_field = false;
+    var found_member = false;
+
+    for (container.ast.members) |member| {
+        if (ast.fullVarDecl(member) != null or ast.fullContainerField(member) != null) {
+            found_field = true;
+        } else if (!found_member) {
+            // We found a member because there is a full declaration.
+            split_offset = ast.tokenStart(ast.firstToken(member));
+            found_member = true;
+        }
+    }
+
+    const close_offset = ast.tokenStart(ast.lastToken(init_node));
+    return .{
+        .fields = if (found_field) ast.source[source_starts_from..split_offset] else null,
+        .members = if (found_member) ast.source[split_offset .. close_offset - 1] else null,
+    };
+}
+
 /// Returns the line number of a declaration.
 fn get_line_number(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) u32 {
     // get the first token.
@@ -256,6 +312,44 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, names
                     .partial_definition = partial_definition,
                 };
                 arr_list.append(allocator, res);
+            },
+            .global_var_decl,
+            .local_var_decl,
+            .simple_var_decl,
+            .aligned_var_decl,
+            => {
+                const token = ast.nodeMainToken(decl);
+                const name = ast.tokenSlice(token + 1);
+
+                const var_decl = ast.fullVarDecl(decl) orelse return null;
+
+                const init_node = var_decl.ast.init_node.unwrap() orelse return null;
+
+                var buffer: [2]std.zig.Ast.Node.Index = undefined;
+
+                const container = ast.fullContainerDecl(&buffer, init_node) orelse return null;
+
+                if (ast.tokenTag(container.ast.main_token) == .keyword_struct) {
+                    return make_container_identifier(ast, init_node, container, comment, name, "struct", line_number);
+                }
+                if (ast.tokenTag(container.ast.main_token) == .keyword_enum) {
+                    return make_container_identifier(ast, init_node, container, comment, name, "enum", line_number);
+                }
+                if (ast.tokenTag(container.ast.main_token) == .keyword_union) {
+                    return make_container_identifier(ast, init_node, container, comment, name, "union", line_number);
+                }
+                if (ast.tokenTag(container.ast.main_token) == .keyword_opaque) {
+                    return make_container_identifier(ast, init_node, container, comment, name, "opaque", line_number);
+                }
+                const signature = ast.getNodeSource(decl);
+
+                identifier_to_return = .{
+                    .comment = comment,
+                    .name = name,
+                    .type = "variable",
+                    .signature = signature,
+                    .line_number = line_number,
+                };
             },
             else => {
                 return null;

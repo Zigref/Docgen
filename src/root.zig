@@ -1,5 +1,5 @@
 const std = @import("std");
-const lib = @import("alt.zig");
+const lib = @import("zigref.zig");
 
 const allocator = std.heap.c_allocator;
 
