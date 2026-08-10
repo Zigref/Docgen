@@ -46,7 +46,7 @@ const std = @import("std");
 
 pub const identifier = struct {
     name: []const u8,
-    namespace: []const u8,
+    namespace: ?[]const u8,
     comment: ?[]const u8,
     type: enum {
         constant,
@@ -177,40 +177,34 @@ pub fn capture_doc_comment(allocator: std.mem.Allocator, ast: std.zig.Ast, decl:
     return resultant_comment.toOwnedSlice(allocator) catch return null;
 }
 
-pub fn process_declaration(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?identifier {
-    var identifier_to_return: identifier = undefined;
-    const index = @intFromEnum(decl);
+/// This function checks if the parser should parse/ignore a declaration.
+fn parser_should_parse_this_declaration(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) bool {
+    const first = ast.firstToken(decl);
 
-    const tags = ast.nodes.items(.tag);
-
-    const comment = capture_doc_comment(ast, decl);
-
-    const line_number = get_line_number(ast, decl);
-    switch (tags[index]) {
-        .test_decl => {
-            const token = ast.nodeMainToken(decl);
-            const name = ast.tokenSlice(token + 1);
-            // const signature = ast.getNodeSource(decl);
-
-            identifier_to_return = .{
-                .comment = comment,
-                .name = name,
-                .type = "test",
-                .signature = null,
-                .line_number = line_number,
-            };
-        },
-        else => {
-            return null;
-        },
-    }
-    return identifier_to_return;
+    return switch (ast.tokenTag(first)) {
+        .keyword_pub,
+        .keyword_export,
+        .keyword_test,
+        => true,
+        else => false,
+    };
 }
 
-pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, namespace: []const u8) !std.ArrayList(identifier) {
+/// Returns the line number of a declaration.
+fn get_line_number(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) u32 {
+    // get the first token.
+    const first_token = ast.firstToken(decl);
+    // getting the exact index of the character at which the token is starting.
+    const byte_offset_kind_of_index = ast.tokenStart(first_token);
+
+    // counting the number of new line characters from the 0th line till the byte offest
+    return @as(u32, @intCast(std.mem.count(u8, ast.source[0..byte_offset_kind_of_index], "\n"))) + 1;
+}
+
+pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, namespace: ?[]const u8, arr_list: std.ArrayList(identifier)) !std.ArrayList(identifier) {
     var ast = try std.zig.Ast.parse(
         allocator,
-        sanitized,
+        source,
         .zig,
     );
 
@@ -218,13 +212,54 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, names
 
     var result_to_return: std.ArrayList(identifier) = .empty;
     defer result_to_return.deinit(allocator);
+    const tags = ast.nodes.items(.tag);
+    const data = ast.nodes.items(.data);
 
     for (ast.rootDecls()) |decl| {
-        if (process_declaration(ast, decl)) |res| {
-            try result_to_return.append(
-                allocator,
-                res,
-            );
+        if (!parser_should_parse_this_declaration(ast, decl)) {
+            continue;
+        }
+        // var identifier_to_return: identifier = undefined;
+        const comment = capture_doc_comment(ast, decl);
+        const line_number = get_line_number(ast, decl);
+
+        const index = @intFromEnum(decl);
+        switch (tags[index]) {
+            .test_decl => {
+                const token = ast.nodeMainToken(decl);
+                const name = ast.tokenSlice(token + 1);
+                // const signature = ast.getNodeSource(decl);
+
+                const res: identifier = .{
+                    .comment = comment,
+                    .name = name,
+                    .type = "test",
+                    .line_number = line_number,
+                    .namespace = namespace,
+                    .partial_definition = "test " + name,
+                };
+                arr_list.append(allocator, res);
+            },
+            .fn_decl => {
+                const proto = data[index].node_and_node[0];
+                const token = ast.nodeMainToken(proto);
+                const name = ast.tokenSlice(token + 1);
+                const partial_definition = ast.getNodeSource(proto);
+
+                const res: identifier = .{
+                    .comment = comment,
+                    .name = name,
+                    .type = "function",
+                    .signature = partial_definition,
+                    .line_number = line_number,
+                    .namespace = namespace,
+                    .partial_definition = partial_definition,
+                };
+                arr_list.append(allocator, res);
+            },
+            else => {
+                return null;
+            },
         }
         try recursive_parse(ast, decl, &result_to_return, allocator);
     }
@@ -235,24 +270,7 @@ pub fn __main(allocator: std.mem.Allocator, source: [:0]const u8) !void {
     const sanitized = try make_all_function_body_empty(allocator, source);
 
     // Now i will start the parsing process
-    recursive_parse(allocator, sanitized, "");
-}
-
-export fn parse_zig(_source: [*:0]const u8) [*:0]const u8 {
-    const source = std.mem.span(_source);
-
-    const res = __main(source) catch {
-        const allocated_string = allocator.dupeZ(u8, "Error while parsing.") catch @panic("No more RAM available");
-        return allocated_string;
-    };
-
-    const allocated_string = allocator.dupeZ(u8, res) catch @panic("No more RAM available.");
-    allocator.free(res);
-    return allocated_string.ptr;
-}
-
-export fn free_zig_string(allocated_string: [*:0]const u8) void {
-    allocator.free(std.mem.span(allocated_string));
+    recursive_parse(allocator, sanitized, null);
 }
 
 test "make_all_function_body_empty" {
