@@ -4,7 +4,7 @@
 #include <nlohmann/json.hpp>
 
 extern "C" {
-const char *parse(const char *_source);
+const char *parse_zig_source(const char *_source);
 void free_zig_string(const char *_string_to_free);
 }
 
@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
       std::stringstream buffer;
       buffer << file.rdbuf();
 
-      const char *result = parse(buffer.str().c_str());
+      const char *result = parse_zig_source(buffer.str().c_str());
       nlohmann::json as_json = nlohmann::json::parse(result);
 
       auto rel = std::filesystem::relative(entry.path(), input_folder);

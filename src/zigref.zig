@@ -54,6 +54,8 @@ pub const identifier = struct {
         @"struct",
         @"opaque",
         @"union",
+        @"test",
+        @"enum",
     },
     partial_definition: ?[]const u8,
     line_number: u32,
@@ -68,7 +70,8 @@ pub const identifier = struct {
 /// Returns:
 ///     Zig source code with bodies of all functions replaced with {}
 fn make_all_function_body_empty(gpa: std.mem.Allocator, source: [:0]const u8) ![:0]const u8 {
-    var ast = try std.zig.Ast.parse(gpa, source, .zig);
+    var ast = std.zig.Ast.parse(gpa, source, .zig) catch @panic("problem with zig source code.");
+    if (ast.errors.len > 0) @panic("problem with zig source code.");
     defer ast.deinit(gpa);
 
     var result: std.ArrayList(u8) = .empty;
@@ -84,6 +87,11 @@ fn make_all_function_body_empty(gpa: std.mem.Allocator, source: [:0]const u8) ![
 
         // the character from which the body starts
         const start_character_index = ast.tokenStart(ast.firstToken(body_of_the_function));
+
+        // Skipping nested functions
+        if (start_character_index < cursor) {
+            continue;
+        }
 
         // This contains the last token of the function body (Not the last index).
         const last_token = ast.lastToken(body_of_the_function);
@@ -215,7 +223,7 @@ fn returns_container_source_as_2_components(
     fields: ?[]const u8,
     members: ?[]const u8,
 } {
-    // the main node is basically the const/var word.
+    // the main node is basically the struct/enum/opaque/unique word.
     var open_brace_token = container.ast.main_token + 1;
     // we will loop till we reach l brace.
     while (ast.tokenTag(open_brace_token) != .l_brace) : (open_brace_token += 1) {}
@@ -257,12 +265,13 @@ fn get_line_number(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) u32 {
     return @as(u32, @intCast(std.mem.count(u8, ast.source[0..byte_offset_kind_of_index], "\n"))) + 1;
 }
 
-pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, namespace: ?[]const u8, arr_list: std.ArrayList(identifier)) !std.ArrayList(identifier) {
-    var ast = try std.zig.Ast.parse(
+pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, namespace: ?[]const u8, arr_list: *std.ArrayList(identifier)) !void {
+    var ast = std.zig.Ast.parse(
         allocator,
         source,
         .zig,
-    );
+    ) catch @panic("problem with zig source code.");
+    if (ast.errors.len > 0) @panic("problem with zig source code.");
 
     defer ast.deinit(allocator);
 
@@ -276,7 +285,7 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, names
             continue;
         }
         // var identifier_to_return: identifier = undefined;
-        const comment = capture_doc_comment(ast, decl);
+        const comment = capture_doc_comment(allocator, ast, decl);
         const line_number = get_line_number(ast, decl);
 
         const index = @intFromEnum(decl);
@@ -289,15 +298,25 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, names
                 const res: identifier = .{
                     .comment = comment,
                     .name = name,
-                    .type = "test",
+                    .type = .@"test",
                     .line_number = line_number,
                     .namespace = namespace,
-                    .partial_definition = "test " + name,
+                    .partial_definition = null,
                 };
-                arr_list.append(allocator, res);
+                try arr_list.append(allocator, res);
             },
-            .fn_decl => {
-                const proto = data[index].node_and_node[0];
+            .fn_decl,
+            .fn_proto,
+            .fn_proto_simple,
+            .fn_proto_multi,
+            .fn_proto_one,
+            => {
+                // For a normal function declaration, i.e fn_decl
+                // the proto contains the entire declaration.
+                // But for something like extern function, its only
+                // the declaration thats present, hence, anything
+                // till the ; would be the declaration for extern functions.
+                const proto = if (tags[index] == .fn_decl) data[index].node_and_node[0] else decl;
                 const token = ast.nodeMainToken(proto);
                 const name = ast.tokenSlice(token + 1);
                 const partial_definition = ast.getNodeSource(proto);
@@ -305,13 +324,12 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, names
                 const res: identifier = .{
                     .comment = comment,
                     .name = name,
-                    .type = "function",
-                    .signature = partial_definition,
+                    .type = .function,
                     .line_number = line_number,
                     .namespace = namespace,
                     .partial_definition = partial_definition,
                 };
-                arr_list.append(allocator, res);
+                try arr_list.append(allocator, res);
             },
             .global_var_decl,
             .local_var_decl,
@@ -321,50 +339,79 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, names
                 const token = ast.nodeMainToken(decl);
                 const name = ast.tokenSlice(token + 1);
 
-                const var_decl = ast.fullVarDecl(decl) orelse return null;
+                const var_decl = ast.fullVarDecl(decl) orelse continue;
 
-                const init_node = var_decl.ast.init_node.unwrap() orelse return null;
+                const init_node = var_decl.ast.init_node.unwrap() orelse {
+                    // these are the extern declarations
+                    // that don't have an assignment, hence,
+                    // putting these here.
+                    try arr_list.append(allocator, .{
+                        .comment = comment,
+                        .name = name,
+                        .type = .constant,
+                        .line_number = line_number,
+                        .namespace = namespace,
+                        .partial_definition = ast.getNodeSource(decl),
+                    });
+                    continue;
+                };
 
                 var buffer: [2]std.zig.Ast.Node.Index = undefined;
 
-                const container = ast.fullContainerDecl(&buffer, init_node) orelse return null;
+                const container = ast.fullContainerDecl(&buffer, init_node) orelse {
+                    try arr_list.append(allocator, .{
+                        .comment = comment,
+                        .name = name,
+                        .type = .constant,
+                        .line_number = line_number,
+                        .namespace = namespace,
+                        .partial_definition = ast.getNodeSource(decl),
+                    });
+                    continue;
+                };
 
-                if (ast.tokenTag(container.ast.main_token) == .keyword_struct) {
-                    return make_container_identifier(ast, init_node, container, comment, name, "struct", line_number);
-                }
-                if (ast.tokenTag(container.ast.main_token) == .keyword_enum) {
-                    return make_container_identifier(ast, init_node, container, comment, name, "enum", line_number);
-                }
-                if (ast.tokenTag(container.ast.main_token) == .keyword_union) {
-                    return make_container_identifier(ast, init_node, container, comment, name, "union", line_number);
-                }
-                if (ast.tokenTag(container.ast.main_token) == .keyword_opaque) {
-                    return make_container_identifier(ast, init_node, container, comment, name, "opaque", line_number);
-                }
+                const source_componenets = returns_container_source_as_2_components(ast, init_node, container);
+
                 const signature = ast.getNodeSource(decl);
+                const ContainerType = @TypeOf(@as(identifier, undefined).type);
+                const type_of_container: ContainerType = switch (ast.tokenTag(container.ast.main_token)) {
+                    .keyword_struct => .@"struct",
+                    .keyword_enum => .@"enum",
+                    .keyword_union => .@"union",
+                    .keyword_opaque => .@"opaque",
+                    else => @panic("unknown container type."),
+                };
 
-                identifier_to_return = .{
+                const res: identifier = .{
                     .comment = comment,
                     .name = name,
-                    .type = "variable",
-                    .signature = signature,
+                    .type = type_of_container,
                     .line_number = line_number,
+                    .namespace = namespace,
+                    .partial_definition = signature,
                 };
+                try arr_list.append(allocator, res);
+
+                if (source_componenets.members) |members| {
+                    const members_z = try allocator.dupeZ(u8, members);
+                    try recursive_parse(allocator, members_z, name, arr_list);
+                }
             },
-            else => {
-                return null;
-            },
+            else => @panic("unsupported root declaration type."),
         }
-        try recursive_parse(ast, decl, &result_to_return, allocator);
     }
 }
 
-pub fn __main(allocator: std.mem.Allocator, source: [:0]const u8) !void {
+pub fn __main(allocator: std.mem.Allocator, source: [:0]const u8) ![]const u8 {
     // First, I will remove all function bodies from this source code.
     const sanitized = try make_all_function_body_empty(allocator, source);
 
     // Now i will start the parsing process
-    recursive_parse(allocator, sanitized, null);
+    var list: std.ArrayList(identifier) = .empty;
+    try recursive_parse(allocator, sanitized, null, &list);
+    const result = try std.json.Stringify.valueAlloc(allocator, list.items, .{});
+
+    return result;
 }
 
 test "make_all_function_body_empty" {
@@ -372,11 +419,11 @@ test "make_all_function_body_empty" {
         \\ const std = @import("std");
         \\
         \\ /// test
-        \\ pub fn tester() {
+        \\ pub fn tester() void {
         \\   var something = "asd";
         \\   _ = something;
         \\ }
-        \\ pub fn tester_2() {
+        \\ pub fn tester_2() void {
         \\   var something = "asd";
         \\   _ = something;
         \\ }

@@ -7,6 +7,10 @@ import Prism from "prismjs";
 import "prismjs/themes/prism-okaidia.css";
 import "prismjs/components/prism-zig";
 
+function make_name_name_spacy(x) {
+  return x.namespace ? `${x.namespace}::${x.name}` : x.name;
+}
+
 function SectionCard({ title, type, documentation, onSelect }) {
   return (
     <article className="card">
@@ -34,7 +38,7 @@ function SectionCard({ title, type, documentation, onSelect }) {
                     : undefined
                 }
               >
-                {x.name}
+                {make_name_name_spacy(x)}
               </a>
             ))}
         </div>
@@ -55,7 +59,7 @@ function DetailView({ main_package_name, type_label, obj, file_name, onBack }) {
 
       <button onClick={onBack}>Back</button>
       <h2>
-        {type_label} <span style={{ color: "#0e7496" }}>{obj.name}</span>
+        {type_label} <span style={{ color: "#0e7496" }}>{make_name_name_spacy(obj)}</span>
         &nbsp;<a href="#">[src]</a>
       </h2>
 
@@ -66,14 +70,36 @@ function DetailView({ main_package_name, type_label, obj, file_name, onBack }) {
             <span style={{ color: "#0e7496" }}>{obj.line_number}</span>
           </h3>
         </header>
-        {obj.signature && (
+        {obj.partial_definition && (
           <footer>
             <pre>
-              <code className="language-zig">{(obj.signature ?? "").trim()}</code>
+              <code className="language-zig">
+                {(obj.partial_definition ?? "").trim()}
+              </code>
             </pre>
           </footer>
         )}
       </article>
+
+      {obj.namespace && (
+        <article className="card">
+          <header>
+            <h3>Namespace</h3>
+          </header>
+          <footer>
+            <a
+              href="#"
+              className="function_name"
+              onClick={(e) => {
+                e.preventDefault();
+                onBack();
+              }}
+            >
+              {obj.namespace}
+            </a>
+          </footer>
+        </article>
+      )}
 
       {obj.comment && (
         <article className="card">
@@ -98,6 +124,7 @@ function HomeComponent({
   setSelectedUnion,
   setSelectedOpaque,
   setSelectedEnum,
+  setSelectedConstant,
   setShowNormalView,
 }) {
   return (
@@ -131,6 +158,23 @@ function HomeComponent({
           setSelectedUnion(null);
           setSelectedOpaque(null);
           setSelectedEnum(null);
+          setSelectedConstant(null);
+          setShowNormalView(false);
+        }}
+      />
+
+      <SectionCard
+        title="Constants"
+        type="constant"
+        documentation={documentation}
+        onSelect={(x, file_name) => {
+          setSelectedConstant({ constant_obj: x, file_name });
+          setSelectedFunction(null);
+          setSelectedStruct(null);
+          setSelectedTest(null);
+          setSelectedUnion(null);
+          setSelectedOpaque(null);
+          setSelectedEnum(null);
           setShowNormalView(false);
         }}
       />
@@ -146,6 +190,7 @@ function HomeComponent({
           setSelectedUnion(null);
           setSelectedOpaque(null);
           setSelectedEnum(null);
+          setSelectedConstant(null);
           setShowNormalView(false);
         }}
       />
@@ -161,6 +206,7 @@ function HomeComponent({
           setSelectedTest(null);
           setSelectedUnion(null);
           setSelectedOpaque(null);
+          setSelectedConstant(null);
           setShowNormalView(false);
         }}
       />
@@ -176,6 +222,7 @@ function HomeComponent({
           setSelectedTest(null);
           setSelectedOpaque(null);
           setSelectedEnum(null);
+          setSelectedConstant(null);
           setShowNormalView(false);
         }}
       />
@@ -191,6 +238,7 @@ function HomeComponent({
           setSelectedTest(null);
           setSelectedUnion(null);
           setSelectedEnum(null);
+          setSelectedConstant(null);
           setShowNormalView(false);
         }}
       />
@@ -206,6 +254,7 @@ function HomeComponent({
           setSelectedUnion(null);
           setSelectedOpaque(null);
           setSelectedEnum(null);
+          setSelectedConstant(null);
           setShowNormalView(false);
         }}
       />
@@ -239,6 +288,7 @@ function App() {
   const [selectedUnion, setSelectedUnion] = useState(null);
   const [selectedOpaque, setSelectedOpaque] = useState(null);
   const [selectedEnum, setSelectedEnum] = useState(null);
+  const [selectedConstant, setSelectedConstant] = useState(null);
 
   useEffect(() => {
     async function load() {
@@ -270,6 +320,7 @@ function App() {
           setSelectedUnion={setSelectedUnion}
           setSelectedOpaque={setSelectedOpaque}
           setSelectedEnum={setSelectedEnum}
+          setSelectedConstant={setSelectedConstant}
           setShowNormalView={setShowNormalView}
         />
       </>
@@ -335,6 +386,19 @@ function App() {
           type_label="Opaque"
           obj={selectedOpaque.opaque_obj}
           file_name={selectedOpaque.file_name}
+          onBack={() => setShowNormalView(true)}
+        />
+      </>
+    );
+  } else if (selectedConstant) {
+    return (
+      <>
+        <Navbar />
+        <DetailView
+          main_package_name={main_package_name}
+          type_label="Constant"
+          obj={selectedConstant.constant_obj}
+          file_name={selectedConstant.file_name}
           onBack={() => setShowNormalView(true)}
         />
       </>

@@ -6,7 +6,7 @@ const allocator = std.heap.c_allocator;
 export fn parse_zig_source(_source: [*:0]const u8) [*:0]const u8 {
     const source = std.mem.span(_source);
 
-    const res = lib.__main(source) catch {
+    const res = lib.__main(allocator, source) catch {
         const allocated_string = allocator.dupeZ(u8, "Error while parsing.") catch @panic("No more RAM available");
         return allocated_string;
     };
