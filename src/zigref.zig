@@ -46,7 +46,6 @@ const std = @import("std");
 
 pub const identifier = struct {
     name: []const u8,
-    namespace: ?[]const u8,
     comment: ?[]const u8,
     type: enum {
         constant,
@@ -59,6 +58,29 @@ pub const identifier = struct {
     },
     partial_definition: ?[]const u8,
     line_number: u32,
+};
+
+/// Ok, so, now think of the documentation like a tree.
+/// namespace is a single node in the tree.
+/// this namespace has:
+///     - a name (obviously)
+///     - children components (the things declared inside the namespace).
+///     - And the children namespaces it has (these can be structs/enums/uniques/opaques).
+pub const namespace = struct {
+    name: []const u8,
+    components: std.ArrayList(identifier),
+    namespaces: std.ArrayList(namespace),
+
+    pub fn jsonStringify(self: @This(), s: *std.json.Stringify) std.json.Stringify.Error!void {
+        try s.beginObject();
+        try s.objectField("name");
+        try s.write(self.name);
+        try s.objectField("components");
+        try s.write(self.components.items);
+        try s.objectField("namespaces");
+        try s.write(self.namespaces.items);
+        try s.endObject();
+    }
 };
 
 /// This function replaces body of every single
@@ -265,7 +287,7 @@ fn get_line_number(ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) u32 {
     return @as(u32, @intCast(std.mem.count(u8, ast.source[0..byte_offset_kind_of_index], "\n"))) + 1;
 }
 
-pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, namespace: ?[]const u8, arr_list: *std.ArrayList(identifier)) !void {
+pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, name: []const u8) !namespace {
     var ast = std.zig.Ast.parse(
         allocator,
         source,
@@ -275,10 +297,16 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, names
 
     defer ast.deinit(allocator);
 
-    var result_to_return: std.ArrayList(identifier) = .empty;
-    defer result_to_return.deinit(allocator);
     const tags = ast.nodes.items(.tag);
     const data = ast.nodes.items(.data);
+
+    var result: namespace = .{
+        .name = name,
+        .components = .empty,
+        .namespaces = .empty,
+    };
+    errdefer result.components.deinit(allocator);
+    errdefer result.namespaces.deinit(allocator);
 
     for (ast.rootDecls()) |decl| {
         if (!parser_should_parse_this_declaration(ast, decl)) {
@@ -292,18 +320,17 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, names
         switch (tags[index]) {
             .test_decl => {
                 const token = ast.nodeMainToken(decl);
-                const name = ast.tokenSlice(token + 1);
+                const name_of = ast.tokenSlice(token + 1);
                 // const signature = ast.getNodeSource(decl);
 
                 const res: identifier = .{
                     .comment = comment,
-                    .name = name,
+                    .name = name_of,
                     .type = .@"test",
                     .line_number = line_number,
-                    .namespace = namespace,
                     .partial_definition = null,
                 };
-                try arr_list.append(allocator, res);
+                try result.components.append(allocator, res);
             },
             .fn_decl,
             .fn_proto,
@@ -318,18 +345,17 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, names
                 // till the ; would be the declaration for extern functions.
                 const proto = if (tags[index] == .fn_decl) data[index].node_and_node[0] else decl;
                 const token = ast.nodeMainToken(proto);
-                const name = ast.tokenSlice(token + 1);
+                const name_of = ast.tokenSlice(token + 1);
                 const partial_definition = ast.getNodeSource(proto);
 
                 const res: identifier = .{
                     .comment = comment,
-                    .name = name,
+                    .name = name_of,
                     .type = .function,
                     .line_number = line_number,
-                    .namespace = namespace,
                     .partial_definition = partial_definition,
                 };
-                try arr_list.append(allocator, res);
+                try result.components.append(allocator, res);
             },
             .global_var_decl,
             .local_var_decl,
@@ -337,7 +363,7 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, names
             .aligned_var_decl,
             => {
                 const token = ast.nodeMainToken(decl);
-                const name = ast.tokenSlice(token + 1);
+                const name_of = ast.tokenSlice(token + 1);
 
                 const var_decl = ast.fullVarDecl(decl) orelse continue;
 
@@ -345,12 +371,11 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, names
                     // these are the extern declarations
                     // that don't have an assignment, hence,
                     // putting these here.
-                    try arr_list.append(allocator, .{
+                    try result.components.append(allocator, .{
                         .comment = comment,
-                        .name = name,
+                        .name = name_of,
                         .type = .constant,
                         .line_number = line_number,
-                        .namespace = namespace,
                         .partial_definition = ast.getNodeSource(decl),
                     });
                     continue;
@@ -359,12 +384,11 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, names
                 var buffer: [2]std.zig.Ast.Node.Index = undefined;
 
                 const container = ast.fullContainerDecl(&buffer, init_node) orelse {
-                    try arr_list.append(allocator, .{
+                    try result.components.append(allocator, .{
                         .comment = comment,
-                        .name = name,
+                        .name = name_of,
                         .type = .constant,
                         .line_number = line_number,
-                        .namespace = namespace,
                         .partial_definition = ast.getNodeSource(decl),
                     });
                     continue;
@@ -384,22 +408,24 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, names
 
                 const res: identifier = .{
                     .comment = comment,
-                    .name = name,
+                    .name = name_of,
                     .type = type_of_container,
                     .line_number = line_number,
-                    .namespace = namespace,
                     .partial_definition = signature,
                 };
-                try arr_list.append(allocator, res);
+                try result.components.append(allocator, res);
 
                 if (source_componenets.members) |members| {
                     const members_z = try allocator.dupeZ(u8, members);
-                    try recursive_parse(allocator, members_z, name, arr_list);
+                    const child_namespace = try recursive_parse(allocator, members_z, name_of);
+                    try result.namespaces.append(allocator, child_namespace);
                 }
             },
             else => @panic("unsupported root declaration type."),
         }
     }
+
+    return result;
 }
 
 pub fn __main(allocator: std.mem.Allocator, source: [:0]const u8) ![]const u8 {
@@ -407,9 +433,8 @@ pub fn __main(allocator: std.mem.Allocator, source: [:0]const u8) ![]const u8 {
     const sanitized = try make_all_function_body_empty(allocator, source);
 
     // Now i will start the parsing process
-    var list: std.ArrayList(identifier) = .empty;
-    try recursive_parse(allocator, sanitized, null, &list);
-    const result = try std.json.Stringify.valueAlloc(allocator, list.items, .{});
+    const root = try recursive_parse(allocator, sanitized, "root");
+    const result = try std.json.Stringify.valueAlloc(allocator, root, .{});
 
     return result;
 }
