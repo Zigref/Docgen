@@ -196,11 +196,11 @@ fn capture_doc_comment(allocator: std.mem.Allocator, ast: std.zig.Ast, decl: std
 
     while (splitted_lines.next()) |next_line| {
         if (std.mem.startsWith(u8, next_line, "///")) {
-            resultant_comment.appendSlice(allocator, next_line[3..]) catch return null;
+            resultant_comment.appendSlice(allocator, std.mem.trim(u8, next_line[3..], " \t\r\n ")) catch return null;
         } else if (std.mem.startsWith(u8, next_line, "//!")) {
-            resultant_comment.appendSlice(allocator, next_line[3..]) catch return null;
+            resultant_comment.appendSlice(allocator, std.mem.trim(u8, next_line[3..], " \t\r\n ")) catch return null;
         } else if (std.mem.startsWith(u8, next_line, "//")) {
-            resultant_comment.appendSlice(allocator, next_line[3..]) catch return null;
+            resultant_comment.appendSlice(allocator, std.mem.trim(u8, next_line[3..], " \t\r\n ")) catch return null;
         }
     }
 

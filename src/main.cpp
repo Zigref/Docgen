@@ -1,11 +1,23 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <string>
 #include <nlohmann/json.hpp>
 
 extern "C" {
     const char* parse_zig_source(const char* _source);
     void free_zig_string(const char* _string_to_free);
+}
+
+static std::string trim(const std::string& str)
+{
+    const auto first = str.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos)
+    {
+        return "";
+    }
+    const auto last = str.find_last_not_of(" \t\r\n");
+    return str.substr(first, last - first + 1);
 }
 
 int main(int argc, char* argv[])
@@ -65,7 +77,7 @@ int main(int argc, char* argv[])
                             // the line is starting with //!
                             if (line.length() >= 3)
                             {
-                                top_level_documentation += line.substr(3) + '\n';
+                                top_level_documentation += trim(line.substr(3)) + '\n';
                             }
                         }
                         else
@@ -94,7 +106,12 @@ int main(int argc, char* argv[])
             nlohmann::json as_json = nlohmann::json::parse(result);
 
             auto rel = std::filesystem::relative(entry.path(), input_folder);
-            file_results[rel.string()] = as_json;
+            nlohmann::json* current = &file_results;
+            for (const auto& part : rel)
+            {
+                current = &((*current)[part.string()]);
+            }
+            *current = as_json;
         }
     }
     catch (std::exception& e)
