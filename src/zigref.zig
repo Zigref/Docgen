@@ -58,6 +58,25 @@ pub const identifier = struct {
     },
     partial_definition: ?[]const u8,
     line_number: u32,
+
+    pub fn jsonStringify(self: @This(), s: *std.json.Stringify) std.json.Stringify.Error!void {
+        try s.beginObject();
+        try s.objectField("name");
+        try s.write(self.name);
+        if (self.comment) |comment| {
+            try s.objectField("comment");
+            try s.write(comment);
+        }
+        try s.objectField("type");
+        try s.write(self.type);
+        if (self.partial_definition) |partial_definition| {
+            try s.objectField("partial_definition");
+            try s.write(partial_definition);
+        }
+        try s.objectField("line_number");
+        try s.write(self.line_number);
+        try s.endObject();
+    }
 };
 
 /// Ok, so, now think of the documentation like a tree.
@@ -260,7 +279,7 @@ fn returns_container_source_as_2_components(
     var found_member = false;
 
     for (container.ast.members) |member| {
-        if (ast.fullVarDecl(member) != null or ast.fullContainerField(member) != null) {
+        if (ast.fullContainerField(member) != null) {
             found_field = true;
         } else if (!found_member) {
             // We found a member because there is a full declaration.
@@ -396,7 +415,17 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, name:
 
                 const source_componenets = returns_container_source_as_2_components(ast, init_node, container);
 
-                const signature = ast.getNodeSource(decl);
+                // Only storing here the fields, not the members
+                // to avouid duplication
+                var open_brace_token = container.ast.main_token + 1;
+                while (ast.tokenTag(open_brace_token) != .l_brace) : (open_brace_token += 1) {}
+                const header = ast.source[ast.tokenStart(ast.firstToken(decl)) .. ast.tokenStart(open_brace_token) + 1];
+
+                const signature = if (source_componenets.fields) |fields|
+                    try std.mem.concat(allocator, u8, &.{ header, fields, "}" })
+                else
+                    try std.mem.concat(allocator, u8, &.{ header, "}" });
+
                 const ContainerType = @TypeOf(@as(identifier, undefined).type);
                 const type_of_container: ContainerType = switch (ast.tokenTag(container.ast.main_token)) {
                     .keyword_struct => .@"struct",

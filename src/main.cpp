@@ -5,8 +5,8 @@
 #include <nlohmann/json.hpp>
 
 extern "C" {
-    const char* parse_zig_source(const char* _source);
-    void free_zig_string(const char* _string_to_free);
+const char* parse_zig_source(const char* _source);
+void free_zig_string(const char* _string_to_free);
 }
 
 static std::string trim(const std::string& str)
@@ -18,6 +18,21 @@ static std::string trim(const std::string& str)
     }
     const auto last = str.find_last_not_of(" \t\r\n");
     return str.substr(first, last - first + 1);
+}
+
+/// Skip directory that contain unnesecary code.
+static bool should_skip_this_folder(const std::filesystem::path& rel)
+{
+    for (const auto& part : rel)
+    {
+        const auto segment = part.string();
+        if (segment == "deps" || segment == "vendor" || segment == "third_party" || segment == ".zig-cache" || segment
+            == "zig-cache" || segment == "zig-out" || segment == ".git")
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 int main(int argc, char* argv[])
@@ -50,9 +65,14 @@ int main(int argc, char* argv[])
                 continue;
             }
 
+            const auto rel = std::filesystem::relative(entry.path(), input_folder);
+            if (should_skip_this_folder(rel))
+            {
+                continue;
+            }
+
             if (!already_parsed_the_root_file_for_documentation)
             {
-                auto rel = std::filesystem::relative(entry.path(), input_folder);
                 if (rel.string() == "src/root.zig" || rel.string() == "src/lib.zig")
                 {
                     // means, this file is the one
@@ -105,7 +125,6 @@ int main(int argc, char* argv[])
             const char* result = parse_zig_source(buffer.str().c_str());
             nlohmann::json as_json = nlohmann::json::parse(result);
 
-            auto rel = std::filesystem::relative(entry.path(), input_folder);
             nlohmann::json* current = &file_results;
             for (const auto& part : rel)
             {
