@@ -9,6 +9,17 @@ const char* parse_zig_source(const char* _source);
 void free_zig_string(const char* _string_to_free);
 }
 
+std::string get_git_commit_hash(const std::string& dir) {
+    std::string cmd = "git -C \"" + dir + "\" rev-parse HEAD";
+    FILE* f = popen(cmd.c_str(), "r");
+
+    char buf[41]{};
+    fgets(buf, sizeof(buf), f);
+    pclose(f);
+
+    return buf;
+}
+
 static std::string trim(const std::string& str)
 {
     const auto first = str.find_first_not_of(" \t\r\n");
@@ -141,9 +152,9 @@ int main(int argc, char* argv[])
 
     nlohmann::json final_results;
     nlohmann::json config;
-    config["commit_hash"] = "";
-    final_results["files"] = file_results;
-    final_results["top_level_documentation"] = top_level_documentation;
+    config["commit_hash"] = get_git_commit_hash(input_folder);
+    final_results["documentation"] = file_results;
+    final_results["top_level_documentation"] = top_level_documentation == "" ? nullptr : top_level_documentation;
     final_results["config"] = config;
 
     std::cout << final_results.dump() << std::endl;
