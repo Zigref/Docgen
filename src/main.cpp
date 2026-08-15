@@ -63,6 +63,7 @@ int main(int argc, char* argv[])
     try
     {
         bool already_parsed_the_root_file_for_documentation = false;
+        int file_roll_number = 0;
         for (const auto& entry :
              std::filesystem::recursive_directory_iterator(input_folder))
         {
@@ -136,12 +137,15 @@ int main(int argc, char* argv[])
             const char* result = parse_zig_source(buffer.str().c_str());
             nlohmann::json as_json = nlohmann::json::parse(result);
 
-            nlohmann::json* current = &file_results;
+            nlohmann::json* current = &file_results["project_tree"];
             for (const auto& part : rel)
             {
                 current = &((*current)[part.string()]);
             }
-            *current = as_json;
+            *current = file_roll_number;
+            
+            file_results["actual_data"].push_back(as_json); // The roll number will directly map to this 
+            file_roll_number++;
         }
     }
     catch (std::exception& e)
@@ -153,10 +157,10 @@ int main(int argc, char* argv[])
     nlohmann::json final_results;
     nlohmann::json config;
     config["commit_hash"] = get_git_commit_hash(input_folder);
-    final_results["documentation"] = file_results;
-    final_results["top_level_documentation"] = top_level_documentation == "" ? nullptr : top_level_documentation;
-    final_results["config"] = config;
-
+    final_results["metadata"]["top_level_documentation"] = top_level_documentation;
+    final_results["metadata"] = config;
+    final_results["metadata"]["project_tree"] = file_results["project_tree"];
+    final_results["data"] = file_results["actual_data"];
     std::cout << final_results.dump() << std::endl;
 
     return 0;
