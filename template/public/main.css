@@ -1,31 +1,43 @@
-html,
-body {
-    margin: 20px;
-}
-.main_hr {
-    border: none;
-    border-top: 2px dotted #000;
-    color: #fff;
-    background-color: #fff;
-    height: 1px;
-    margin: 0 0 20px 0;
+
+.file_folder_name {
+  font-size: small;
+  cursor: pointer;
+  width: 100%;
 }
 
-.item_grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    align-items: start;
+summary::before {
+  content: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tcmlnaHQtaWNvbiBsdWNpZGUtY2hldnJvbi1yaWdodCI+PHBhdGggZD0ibTkgMTggNi02LTYtNiIvPjwvc3ZnPg==");
+  margin-right: 12px;
+   zoom: 0.6; 
+  display: inline-block;
+  transition: transform 0.2s ease;
 }
 
-@media (max-width: 900px) {
-    .item_grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
+summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  width: 100%;
+}
+summary:hover, .file_folder_name:hover {
+  background-color: #d7d7d7;
 }
 
-@media (max-width: 600px) {
-    .item_grid {
-        grid-template-columns: 1fr;
-    }
+summary::-webkit-details-marker {
+  display: none;
+}
+details{
+  width: 100%;
+}
+
+details[open]>summary::before {
+  transform: rotate(90deg);
+}
+
+aside {
+  width: 500px;
+  height:100vh;
+  overflow: scroll;
+  user-select: none;
 }

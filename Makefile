@@ -1,5 +1,5 @@
 CPP_COMPILER = clang++
-CPP_FLAGS = -std=c++23 -Wall -Wextra
+CPP_FLAGS = -std=c++23 -Wall -Wextra -lbrotlienc
 
 main: ./src/main.cpp ./src/root.zig
 	mkdir -p ./build

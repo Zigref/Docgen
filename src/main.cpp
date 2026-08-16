@@ -4,14 +4,38 @@
 #include <string>
 #include <nlohmann/json.hpp>
 
-extern "C" {
-const char* parse_zig_source(const char* _source);
-void free_zig_string(const char* _string_to_free);
+extern "C"
+{
+    const char *parse_zig_source(const char *_source);
+    void free_zig_string(const char *_string_to_free);
 }
 
-std::string get_git_commit_hash(const std::string& dir) {
+#include <brotli/encode.h>
+#include <string>
+
+
+void brotli_compress_string(const std::string& string_to_compress) {
+    size_t size = BrotliEncoderMaxCompressedSize(string_to_compress.size());
+    std::string out(size, '\0');
+
+    BrotliEncoderCompress(
+        BROTLI_MAX_QUALITY,
+        BROTLI_MAX_WINDOW_BITS,
+        BROTLI_MODE_TEXT,
+        string_to_compress.size(),
+        (const uint8_t*)string_to_compress.data(),
+        &size,
+        reinterpret_cast<uint8_t*>(out.data())
+    );
+
+    out.resize(size);
+    std::cout.write(out.c_str(), size);
+}
+
+std::string get_git_commit_hash(const std::string &dir)
+{
     std::string cmd = "git -C \"" + dir + "\" rev-parse HEAD";
-    FILE* f = popen(cmd.c_str(), "r");
+    FILE *f = popen(cmd.c_str(), "r");
 
     char buf[41]{};
     fgets(buf, sizeof(buf), f);
@@ -20,7 +44,7 @@ std::string get_git_commit_hash(const std::string& dir) {
     return buf;
 }
 
-static std::string trim(const std::string& str)
+static std::string trim(const std::string &str)
 {
     const auto first = str.find_first_not_of(" \t\r\n");
     if (first == std::string::npos)
@@ -32,13 +56,12 @@ static std::string trim(const std::string& str)
 }
 
 /// Skip directory that contain unnesecary code.
-static bool should_skip_this_folder(const std::filesystem::path& rel)
+static bool should_skip_this_folder(const std::filesystem::path &rel)
 {
-    for (const auto& part : rel)
+    for (const auto &part : rel)
     {
         const auto segment = part.string();
-        if (segment == "deps" || segment == "vendor" || segment == "third_party" || segment == ".zig-cache" || segment
-            == "zig-cache" || segment == "zig-out" || segment == ".git")
+        if (segment == "zig-pkg" || segment == "deps" || segment == "vendor" || segment == "third_party" || segment == ".zig-cache" || segment == "zig-cache" || segment == "zig-out" || segment == ".git" || segment == "example" || segment == "examples")
         {
             return true;
         }
@@ -46,7 +69,7 @@ static bool should_skip_this_folder(const std::filesystem::path& rel)
     return false;
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
     if (argc != 2)
     {
@@ -64,7 +87,7 @@ int main(int argc, char* argv[])
     {
         bool already_parsed_the_root_file_for_documentation = false;
         int file_roll_number = 0;
-        for (const auto& entry :
+        for (const auto &entry :
              std::filesystem::recursive_directory_iterator(input_folder))
         {
             if (!entry.is_regular_file())
@@ -97,7 +120,7 @@ int main(int argc, char* argv[])
                     if (!file)
                     {
                         std::cerr << "File that should exist, somehow doesn't exist: "
-                            << entry.path() << std::endl;
+                                  << entry.path() << std::endl;
                         return 0;
                     }
 
@@ -128,27 +151,27 @@ int main(int argc, char* argv[])
             if (!file)
             {
                 std::cerr << "File that should exist, somehow doesn't exist: "
-                    << entry.path() << std::endl;
+                          << entry.path() << std::endl;
                 return 0;
             }
             std::stringstream buffer;
             buffer << file.rdbuf();
 
-            const char* result = parse_zig_source(buffer.str().c_str());
+            const char *result = parse_zig_source(buffer.str().c_str());
             nlohmann::json as_json = nlohmann::json::parse(result);
 
-            nlohmann::json* current = &file_results["project_tree"];
-            for (const auto& part : rel)
+            nlohmann::json *current = &file_results["project_tree"];
+            for (const auto &part : rel)
             {
                 current = &((*current)[part.string()]);
             }
             *current = file_roll_number;
-            
-            file_results["actual_data"].push_back(as_json); // The roll number will directly map to this 
+
+            file_results["actual_data"].push_back(as_json); // The roll number will directly map to this
             file_roll_number++;
         }
     }
-    catch (std::exception& e)
+    catch (std::exception &e)
     {
         std::cerr << "Filesystem error: " << e.what() << '\n';
         return 1;
@@ -161,7 +184,7 @@ int main(int argc, char* argv[])
     final_results["metadata"] = config;
     final_results["metadata"]["project_tree"] = file_results["project_tree"];
     final_results["data"] = file_results["actual_data"];
-    std::cout << final_results.dump() << std::endl;
+    brotli_compress_string(final_results.dump());
 
     return 0;
 }
