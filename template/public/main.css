@@ -1,4 +1,7 @@
-
+html ,body {
+  margin: 0;
+  padding: 0;
+}
 .file_folder_name {
   font-size: small;
   cursor: pointer;
@@ -8,7 +11,7 @@
 summary::before {
   content: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tcmlnaHQtaWNvbiBsdWNpZGUtY2hldnJvbi1yaWdodCI+PHBhdGggZD0ibTkgMTggNi02LTYtNiIvPjwvc3ZnPg==");
   margin-right: 12px;
-   zoom: 0.6; 
+  zoom: 0.6;
   display: inline-block;
   transition: transform 0.2s ease;
 }
@@ -20,14 +23,17 @@ summary {
   cursor: pointer;
   width: 100%;
 }
-summary:hover, .file_folder_name:hover {
+
+summary:hover,
+.file_folder_name:hover {
   background-color: #d7d7d7;
 }
 
 summary::-webkit-details-marker {
   display: none;
 }
-details{
+
+details {
   width: 100%;
 }
 
@@ -37,7 +43,24 @@ details[open]>summary::before {
 
 aside {
   width: 500px;
-  height:100vh;
+  height: calc(100vh - 40px);
   overflow: scroll;
   user-select: none;
+}
+
+main {
+  height: calc(100vh - 40px);
+  overflow-y: scroll;
+  width: 100%;
+}
+
+.box {
+  border: 1px solid black;
+  padding: 10px 20px 10px 20px;
+  overflow-x: scroll;
+  margin-bottom: 10px;
+}
+
+nav {
+  height: 40px;
 }
