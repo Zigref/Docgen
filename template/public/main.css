@@ -46,6 +46,7 @@ aside {
   height: calc(100vh - 40px);
   overflow: scroll;
   user-select: none;
+  border-right:1px solid black;
 }
 
 main {
@@ -63,4 +64,13 @@ main {
 
 nav {
   height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px 0 20px;
+  border-bottom: 1px solid black;
+}
+ 
+.search_text {
+  width: 400px;
 }
