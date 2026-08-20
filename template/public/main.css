@@ -1,7 +1,9 @@
-html ,body {
+html,
+body {
   margin: 0;
   padding: 0;
 }
+
 .file_folder_name {
   font-size: small;
   cursor: pointer;
@@ -33,6 +35,15 @@ summary::-webkit-details-marker {
   display: none;
 }
 
+ul {
+  padding-left: 0;
+  margin: 0;
+}
+
+ul ul {
+  padding-left: 1em;
+}
+
 details {
   width: 100%;
 }
@@ -41,12 +52,13 @@ details[open]>summary::before {
   transform: rotate(90deg);
 }
 
-aside {
+#sidebar {
   width: 500px;
   height: calc(100vh - 40px);
   overflow: scroll;
   user-select: none;
-  border-right:1px solid black;
+  border-right: 1px solid black;
+  min-width: 200px;
 }
 
 main {
@@ -70,7 +82,14 @@ nav {
   padding: 0 20px 0 20px;
   border-bottom: 1px solid black;
 }
- 
+
 .search_text {
   width: 400px;
+}
+
+#side-side-bar {
+  width: 50px;
+  height: calc(100vh - 40px);
+  user-select: none;
+  border-right: 1px solid black;
 }

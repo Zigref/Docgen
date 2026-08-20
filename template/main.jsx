@@ -8,13 +8,29 @@ const isFolder = (value) => {
     return typeof value === "object" && value !== null;
 };
 
+function make_this_only_components(components, namespaces, prefix = "") {
+    const result = [];
+    for (const component of components) {
+        const full_name = prefix ? `${prefix}::${component.name}` : component.name;
+        result.push({ ...component, name: full_name });
+    }
+    if (namespaces) {
+        for (const namespace of namespaces) {
+            const namespace_full_name = prefix ? `${prefix}::${namespace.name}` : namespace.name;
+            result.push(...make_this_only_components(namespace.components, namespace.namespaces, namespace_full_name));
+        }
+    }
+    return result;
+}
+
 function RenderDocumentation({ data }) {
-    if (data.components.length == 0) {
+    if (!data.components || data.components.length == 0) {
         return <>No documentation for this file!</>;
     }
+    const only_components_list = make_this_only_components(data.components, data.namespaces);
     return (<>
         {
-            data.components.map(component => {
+            only_components_list.map(component => {
                 return (
                     <div className="box">
                         <h3>{component.type} {component.name}</h3>
@@ -109,8 +125,17 @@ function App() {
     return (
         <>
             <nav><a href="/">Zigref</a><input className="search_text" type="text" /><h4>{commit_hash}</h4></nav>
-            <div style={{ display: "flex", gap: "2rem" }}>
-                <aside style={{ minWidth: "250px" }}>
+            <div style={{ display: "flex",gap: "20px" }}>
+                <aside id="side-side-bar">
+                    <button id="">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder-open-icon lucide-folder-open"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" /></svg>
+                    </button>
+                    <button>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search-icon lucide-search"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></svg>
+                    </button>
+                </aside>
+                <aside id="sidebar">
+                    <h5 id="mention_title">File Explorer</h5>
                     {tree ? <TreeView tree={tree} onSelect={setSelectedIndex} /> : "Loading…"}
                 </aside>
 
@@ -118,7 +143,7 @@ function App() {
                     {selectedIndex !== null ? (
                         <>
                             <h2>Showing documentation for file: {selectedIndex.name}</h2>
-                            {selectedIndex.value && dataEntries ? (
+                            {selectedIndex.value != null && dataEntries ? (
                                 <RenderDocumentation key={selectedIndex.value} data={dataEntries[selectedIndex.value]} />
                             ) : (
                                 <p>Select a file</p>
