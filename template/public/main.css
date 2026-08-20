@@ -2,12 +2,16 @@ html,
 body {
   margin: 0;
   padding: 0;
+  color: white;
+  background-color: #171717;
 }
 
 .file_folder_name {
   font-size: small;
   cursor: pointer;
   width: 100%;
+  border-radius: 5px;
+  padding: 4px 0 4px 0;
 }
 
 summary::before {
@@ -24,11 +28,12 @@ summary {
   align-items: center;
   cursor: pointer;
   width: 100%;
+  border-radius: 5px;
 }
 
 summary:hover,
 .file_folder_name:hover {
-  background-color: #d7d7d7;
+  background-color: #4e4e4e;
 }
 
 summary::-webkit-details-marker {
@@ -55,22 +60,25 @@ details[open]>summary::before {
 #sidebar {
   width: 500px;
   height: calc(100vh - 40px);
-  overflow: scroll;
+  overflow: auto;
   user-select: none;
-  border-right: 1px solid black;
   min-width: 200px;
+  padding: 0 20px 0 20px;
+  border-radius: 10px;
+  margin-left: 20px;
+  border: 1px solid rgb(70, 70, 70);
 }
 
 main {
   height: calc(100vh - 40px);
-  overflow-y: scroll;
+  overflow-y: auto;
   width: 100%;
 }
 
 .box {
-  border: 1px solid black;
+  border: 1px solid gold;
   padding: 10px 20px 10px 20px;
-  overflow-x: scroll;
+  overflow-x: auto;
   margin-bottom: 10px;
 }
 
@@ -80,7 +88,6 @@ nav {
   align-items: center;
   justify-content: space-between;
   padding: 0 20px 0 20px;
-  border-bottom: 1px solid black;
 }
 
 .search_text {
@@ -91,5 +98,10 @@ nav {
   width: 50px;
   height: calc(100vh - 40px);
   user-select: none;
-  border-right: 1px solid black;
+}
+main {
+  padding: 20px;
+  border-radius: 10px;
+  border: 1px solid rgb(70, 70, 70);
+  margin-left: 10px;
 }
