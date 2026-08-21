@@ -1,7 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { render } from "preact";
 import Prism from "prismjs";
-import "prismjs/themes/prism.css";
+import "prismjs/themes/prism-twilight.css";
 import "prismjs/components/prism-zig";
 
 const isFolder = (value) => {
@@ -33,11 +33,11 @@ function RenderDocumentation({ data }) {
             only_components_list.map(component => {
                 return (
                     <div className="box">
-                        <h3>{component.type} {component.name}</h3>
+                        <h3><span className="component_type">{component.type}</span> <span className="component_name">{component.name}</span>:<span className="line_number">{component.line_number}</span></h3>
 
                         <p>{component.comment}</p>
                         {component.type === "test" ?
-                            <pre><code className="language-zig">test "{component.name}"</code></pre>
+                            <pre><code className="language-zig">test {component.name}</code></pre>
                             :
                             <pre><code className="language-zig">{component.partial_definition}</code></pre>
                         }
@@ -108,16 +108,22 @@ function App() {
     const [dataEntries, setDataEntries] = useState();
     const [commit_hash, setCommitHash] = useState();
     const [selectedIndex, setSelectedIndex] = useState(null);
+    const [size_in_byte, set_size_in_byte] = useState(null);
 
     useEffect(() => {
         Prism.highlightAll();
     }, [selectedIndex]);
     useEffect(() => {
         fetch("/template.json.br")
-            .then(r => r.json())
+            .then(r => {
+                const size_byte = Number(r.headers.get("Content-Length"));
+                const size_in_kib = size_byte / 1024;
+                set_size_in_byte(size_in_kib.toFixed(2));
+                return r.json();
+            })
             .then(data => {
                 setTree(data.metadata.project_tree);
-                setCommitHash(data.metadata.commit_hash);
+                setCommitHash(data.metadata.commit_hash.slice(0,10) + "...");
                 setDataEntries(data.data);
             });
     }, []);
@@ -125,7 +131,7 @@ function App() {
     return (
         <>
             <nav><a href="/">Zigref</a><input className="search_text" type="text" /></nav>
-            <div style={{ display: "flex" }}>
+            <div class="content-wrapper">
                 <aside id="side-side-bar">
                     <button id="">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder-open-icon lucide-folder-open"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" /></svg>
@@ -142,7 +148,7 @@ function App() {
                 <main>
                     {selectedIndex !== null ? (
                         <>
-                            <h2>Showing documentation for file: {selectedIndex.name}</h2>
+                            <h2>Showing documentation for file: <span className="line_number">{selectedIndex.name}</span></h2>
                             {selectedIndex.value != null && dataEntries ? (
                                 <RenderDocumentation key={selectedIndex.value} data={dataEntries[selectedIndex.value]} />
                             ) : (
@@ -154,9 +160,9 @@ function App() {
                     )}
                 </main>
             </div>
-                <footer>
-                    <span>{commit_hash}</span>
-                </footer>
+            <footer>
+                <span>#{commit_hash} &nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-archive-icon lucide-file-archive"><path d="M13.659 22H18a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v11.5"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M8 12v-1"/><path d="M8 18v-2"/><path d="M8 7V6"/><circle cx="8" cy="20" r="2"/></svg>{size_in_byte} KiB</span>
+            </footer>
         </>
     );
 }
