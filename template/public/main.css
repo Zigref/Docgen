@@ -96,7 +96,6 @@ details[open]>summary::before {
   min-width: 200px;
   padding: 0 20px 0 20px;
   border-radius: 10px;
-  margin-left: 20px;
   border: 1px solid rgb(70, 70, 70);
 }
 
@@ -139,6 +138,10 @@ footer {
 
 .search_text {
   width: 400px;
+  background-color: #171717;
+  border: 1px solid #4e4e4e;
+  color: white;
+  border-radius: 5px;
 }
 
 #side-side-bar {
@@ -162,4 +165,22 @@ main {
 .line_number {
   color:#afafff;
   text-decoration: underline;
+}
+
+#side-side-bar > button {
+  background-color: transparent;
+  color: white;
+  height: 70px;
+  width: 50px;
+  border: 0;
+  border-radius: 10px;
+}
+
+#side-side-bar > button > div { 
+  padding: 3px;
+  border-radius: 4px;
+}
+
+#side-side-bar > button > div:hover { 
+  background-color: #4e4e4e;
 }
