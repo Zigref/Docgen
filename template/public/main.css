@@ -170,17 +170,31 @@ main {
 #side-side-bar > button {
   background-color: transparent;
   color: white;
-  height: 70px;
+  height: 40px;
   width: 50px;
   border: 0;
   border-radius: 10px;
-}
-
-#side-side-bar > button > div { 
   padding: 3px;
-  border-radius: 4px;
+  margin: 2px 0;
 }
 
-#side-side-bar > button > div:hover { 
+#side-side-bar > button:hover { 
   background-color: #4e4e4e;
+}
+
+#side-side-bar > button.active {
+  background-color: transparent;
+  position: relative;
+}
+
+#side-side-bar > button.active::after {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 3px;
+  background-color: #b94011;
+  border-radius: 2px;
 }

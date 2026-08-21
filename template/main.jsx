@@ -109,6 +109,7 @@ function App() {
     const [commit_hash, setCommitHash] = useState();
     const [selectedIndex, setSelectedIndex] = useState(null);
     const [size_in_byte, set_size_in_byte] = useState(null);
+    const [active_view, set_active_view] = useState("files");
 
     useEffect(() => {
         Prism.highlightAll();
@@ -133,20 +134,24 @@ function App() {
             <nav><a href="/" style={{ color: "white", textDecoration: "none" }}><span style={{ color: "yellow" }}>Zig</span>ref</a><input className="search_text" type="text" /></nav>
             <div class="content-wrapper">
                 <aside id="side-side-bar">
-                    <button id="">
-                        <div>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder-open-icon lucide-folder-open"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" /></svg>
-                        </div>
+                    <button class={`sidebar-btn ${active_view === "files" ? "active" : ""}`} onClick={() => set_active_view("files")}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder-open-icon lucide-folder-open"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" /></svg>
                     </button>
-                    <button>
-                        <div>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search-icon lucide-search"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></svg>
-                        </div>
+                    <button class={`sidebar-btn ${active_view === "search" ? "active" : ""}`} onClick={() => set_active_view("search")}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search-icon lucide-search"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></svg>
                     </button>
                 </aside>
                 <aside id="sidebar">
-                    <h5 id="mention_title">File Explorer</h5>
-                    {tree ? <TreeView tree={tree} onSelect={setSelectedIndex} /> : "Loading…"}
+                    {active_view === "files" ? (
+                        <>
+                            <h5 id="mention_title">File Explorer</h5>
+                            {tree ? <TreeView tree={tree} onSelect={setSelectedIndex} /> : "Loading…"}
+                        </>
+                    ) : (
+                        <>
+                            <h5 id="mention_title">Search</h5>
+                        </>
+                    )}
                 </aside>
 
                 <main>
