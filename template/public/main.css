@@ -166,6 +166,14 @@ main {
   color:#afafff;
   text-decoration: underline;
 }
+.link-icon {
+  color: #888;
+  vertical-align: middle;
+  text-decoration: none;
+}
+.link-icon:hover {
+  color: white;
+}
 
 #side-side-bar > button {
   background-color: transparent;

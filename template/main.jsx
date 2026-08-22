@@ -31,9 +31,10 @@ function RenderDocumentation({ data }) {
     return (<>
         {
             only_components_list.map(component => {
+                const component_id = component.name.replace(/::/g, "--");
                 return (
-                    <div className="box">
-                        <h3><span className="component_type">{component.type}</span> <span className="component_name">{component.name}</span>:<span className="line_number">{component.line_number}</span></h3>
+                    <div className="box" id={component_id}>
+                        <h3><span className="component_type">{component.type}</span> <span className="component_name">{component.name}</span>:<span className="line_number">{component.line_number}</span> <a className="link-icon" href={`#${component_id}`}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></a></h3>
 
                         <p>{component.comment}</p>
                         {component.type === "test" ?
@@ -113,7 +114,21 @@ function App() {
 
     useEffect(() => {
         Prism.highlightAll();
+        if (location.hash) {
+            setTimeout(() => {
+                document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: "smooth" });
+            }, 100);
+        }
     }, [selectedIndex]);
+    useEffect(() => {
+        const on_hash_change = () => {
+            if (location.hash) {
+                document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: "smooth" });
+            }
+        };
+        window.addEventListener("hash_has_changed", on_hash_change);
+        return () => window.removeEventListener("hash_has_changed", on_hash_change);
+    }, []);
     useEffect(() => {
         fetch("/template.json.br")
             .then(r => {
