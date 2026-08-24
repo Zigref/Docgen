@@ -8,44 +8,50 @@ const isFolder = (value) => {
     return typeof value === "object" && value !== null;
 };
 
-function make_this_only_components(components, namespaces, prefix = "") {
-    const result = [];
-    for (const component of components) {
-        const full_name = prefix ? `${prefix}::${component.name}` : component.name;
-        result.push({ ...component, name: full_name });
-    }
-    if (namespaces) {
-        for (const namespace of namespaces) {
-            const namespace_full_name = prefix ? `${prefix}::${namespace.name}` : namespace.name;
-            result.push(...make_this_only_components(namespace.components, namespace.namespaces, namespace_full_name));
-        }
-    }
-    return result;
+function RenderComponent({ component, prefix }) {
+    const full_name = prefix ? `${prefix}::${component.name}` : component.name;
+    const component_id = full_name.replace(/::/g, "--");
+    return (
+        <div className="box" id={component_id}>
+            <h3><span className="component_type">{component.type}</span> <span className="component_name">{full_name}</span>:<span className="line_number">{component.line_number}</span> <a className="link-icon" href={`#${component_id}`}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg></a></h3>
+            <p>{component.comment}</p>
+            {component.type === "test" ?
+                <pre><code className="language-zig">test {component.name}</code></pre>
+                :
+                <pre><code className="language-zig">{component.partial_definition}</code></pre>
+            }
+        </div>
+    );
+}
+
+function RenderNamespace({ namespace, prefix }) {
+    const ns_prefix = prefix ? `${prefix}::${namespace.name}` : namespace.name;
+    return (
+        <details className="namespace-section">
+            <summary className="namespace-header">{namespace.name}</summary>
+            <div className="namespace-body">
+                {namespace.components && namespace.components.map((c, i) => (
+                    <RenderComponent key={i} component={c} prefix={ns_prefix} />
+                ))}
+                {namespace.namespaces && namespace.namespaces.map((ns, i) => (
+                    <RenderNamespace key={i} namespace={ns} prefix={ns_prefix} />
+                ))}
+            </div>
+        </details>
+    );
 }
 
 function RenderDocumentation({ data }) {
     if (!data.components || data.components.length == 0) {
         return <>No documentation for this file!</>;
     }
-    const only_components_list = make_this_only_components(data.components, data.namespaces);
     return (<>
-        {
-            only_components_list.map(component => {
-                const component_id = component.name.replace(/::/g, "--");
-                return (
-                    <div className="box" id={component_id}>
-                        <h3><span className="component_type">{component.type}</span> <span className="component_name">{component.name}</span>:<span className="line_number">{component.line_number}</span> <a className="link-icon" href={`#${component_id}`}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-link-icon lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></a></h3>
-
-                        <p>{component.comment}</p>
-                        {component.type === "test" ?
-                            <pre><code className="language-zig">test {component.name}</code></pre>
-                            :
-                            <pre><code className="language-zig">{component.partial_definition}</code></pre>
-                        }
-                    </div>
-                );
-            })
-        }
+        {data.components.map((c, i) => (
+            <RenderComponent key={i} component={c} prefix="" />
+        ))}
+        {data.namespaces && data.namespaces.map((ns, i) => (
+            <RenderNamespace key={i} namespace={ns} prefix="" />
+        ))}
     </>)
 }
 

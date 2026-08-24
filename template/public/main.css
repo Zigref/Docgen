@@ -175,6 +175,27 @@ main {
   color: white;
 }
 
+.namespace-section {
+  margin-bottom: 10px;
+  border: 1px solid rgb(70, 70, 70);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.namespace-header {
+  padding: 8px 12px;
+  background-color: #2a2a2a;
+  font-weight: bold;
+  color: #e0c097;
+  cursor: pointer;
+  font-size: 1.05em;
+}
+
+.namespace-body {
+  padding: 10px;
+  padding-left: 20px;
+}
+
 #side-side-bar > button {
   background-color: transparent;
   color: white;
