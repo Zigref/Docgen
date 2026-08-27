@@ -1,5 +1,5 @@
 CPP_COMPILER = clang++
-CPP_FLAGS = -std=c++23 -Wall -Wextra -lbrotlienc -I./include/
+CPP_FLAGS = -std=c++23 -Wall -Wextra -lbrotlienc -lminiz -I./include/
 
 
 main: ./src/main.cpp ./src/root.zig
@@ -8,9 +8,9 @@ main: ./src/main.cpp ./src/root.zig
 	$(CPP_COMPILER) $(CPP_FLAGS) ./src/main.cpp ./build/parser.o -o ./build/main
 
 init:
-	mkdir -p ./include/miniz-3.1.2
-	curl -L https://github.com/richgel999/miniz/releases/download/3.1.2/miniz-3.1.2.zip -o /tmp/miniz.zip
-	unzip /tmp/miniz.zip -d ./include/miniz-3.1.2
+	mkdir -p ./include/miniz
+	curl -L https://github.com/richgel999/miniz/releases/download/3.1.2/miniz.zip -o /tmp/miniz.zip
+	unzip /tmp/miniz.zip -d ./include/miniz
 
 
 clean:
