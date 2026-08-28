@@ -112,7 +112,7 @@ pub const namespace = struct {
 ///     Zig source code with bodies of all functions replaced with {}
 fn make_all_function_body_empty(gpa: std.mem.Allocator, source: [:0]const u8) ![:0]const u8 {
     var ast = std.zig.Ast.parse(gpa, source, .zig) catch @panic("problem with zig source code.");
-    if (ast.errors.len > 0) @panic("problem with zig source code.");
+    if (ast.errors.len > 0) return error.problem_with_zig_code;
     defer ast.deinit(gpa);
 
     var result: std.ArrayList(u8) = .empty;

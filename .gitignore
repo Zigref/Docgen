@@ -5,3 +5,6 @@ dist/
 .idea/
 .zig-cache/
 include/
+*.db*
+database/
+*.out
