@@ -4,6 +4,42 @@
 #include <miniz/miniz.h>
 #include <sstream>
 #include <nlohmann/json.hpp>
+#include <curl/curl.h>
+#include <vector>
+
+
+
+
+
+#include <curl/curl.h>
+#include <string>
+
+static size_t write(void *data, size_t size, size_t count, void *user)
+{
+    auto *buffer = (std::string *)user;
+    buffer->append((char *)data, size * count);
+    return size * count;
+}
+
+static std::string fetch_zip(const char *url)
+{
+    std::string zip;
+    CURL *curl = curl_easy_init();
+
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &zip);
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_perform(curl);
+
+    curl_easy_cleanup(curl);
+    return zip;
+}
+
+
+
+
+
 
 static std::string trim(const std::string &str)
 {
@@ -75,7 +111,14 @@ int main(int argc, char *argv[])
         return 0;
     }
     mz_zip_archive zip_archive_main_struct{};
-    mz_zip_reader_init_file(&zip_archive_main_struct, argv[1], 0);
+
+    auto zip = fetch_zip("https://github.com/zig-gamedev/zig-gamedev/archive/refs/heads/main.zip");
+
+    mz_zip_reader_init_mem(
+        &zip_archive_main_struct,
+        zip.data(),
+        zip.size(),
+        0);
 
     nlohmann::json file_results;
 
