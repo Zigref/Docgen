@@ -8,12 +8,12 @@ main: ./src/main.cpp ./src/root.zig
 	$(CPP_COMPILER) $(CPP_FLAGS) ./src/main.cpp ./src/process_repo.cpp ./build/parser.o -o ./build/main
 
 init:
-	mkdir -p ./include/miniz
+	rm -rf ./include/miniz
 	curl -fL https://github.com/richgel999/miniz/archive/refs/tags/3.1.2.zip -o /tmp/miniz.zip
 	unzip -q /tmp/miniz.zip -d /tmp/miniz
-	cp /tmp/miniz/miniz-3.1.2/miniz.h ./include/miniz/
-	cp /tmp/miniz/miniz-3.1.2/miniz.c ./include/miniz/
+	mv /tmp/miniz/miniz-3.1.2 ./include/miniz
 	rm -rf /tmp/miniz /tmp/miniz.zip
+
 
 clean:
 	rm -rf ./build
