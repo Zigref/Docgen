@@ -16,7 +16,7 @@ jobs:
 
       - name: install dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y clang curl unzip zip libbrotli-dev libsqlite3-dev make
+          sudo apt-get update && sudo apt-get install -y clang curl unzip zip  libcurl4-openssl-dev libbrotli-dev libsqlite3-dev make
 
       - name: install zig
         uses: mlugg/setup-zig@v2
