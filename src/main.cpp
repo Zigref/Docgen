@@ -5,6 +5,7 @@
 #include <brotli/encode.h>
 #include <fstream>
 #include <format>
+#include <filesystem>
 
 std::string brotli_compress_string(const std::string &string_to_compress)
 {
@@ -64,7 +65,11 @@ int main()
     const auto process_repo_res = process_repo(provider, owner_name, repo_name, commit_hash);
     const auto compressed_string = brotli_compress_string(process_repo_res);
 
-    const std::string file_name = std::format("./database/{}/{}/{}.br", res[0], owner_name, repo_name);
+    const std::string folder = std::format("./database/{}/{}", res[0], owner_name);
+    std::filesystem::create_directories(folder);
+
+    const std::string file_name = std::format("{}/{}.br", folder, repo_name);
+
     std::ofstream file(file_name, std::ios::binary);
     file.write(compressed_string.data(), compressed_string.size());
   }

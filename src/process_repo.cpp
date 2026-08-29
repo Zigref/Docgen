@@ -171,8 +171,12 @@ std::string process_repo(std::string provider, std::string owner_name, std::stri
             free(data);
 
             const char *result = parse_zig_source(source.c_str());
-            nlohmann::json as_json = nlohmann::json::parse(result);
-
+            nlohmann::json as_json;
+            try {
+                nlohmann::json::parse(result);
+            } catch(std::exception &e) {
+                return "{\"error\" : \"error while parsing.\"}";
+            };
             nlohmann::json *current = &file_results["project_tree"];
 
             std::string part;

@@ -59,6 +59,11 @@ pub const identifier = struct {
     partial_definition: ?[]const u8,
     line_number: u32,
 
+    pub fn deinit(self: *identifier, allocator: std.mem.Allocator) void {
+        if (self.comment) |comment| allocator.free(comment);
+        if (self.partial_definition) |pd| allocator.free(pd);
+    }
+
     pub fn jsonStringify(self: @This(), s: *std.json.Stringify) std.json.Stringify.Error!void {
         try s.beginObject();
         try s.objectField("name");
@@ -89,6 +94,13 @@ pub const namespace = struct {
     name: []const u8,
     components: std.ArrayList(identifier),
     namespaces: std.ArrayList(namespace),
+
+    pub fn deinit(self: *namespace, allocator: std.mem.Allocator) void {
+        for (self.components.items) |*components| components.deinit(allocator);
+        self.components.deinit(allocator);
+        for (self.namespaces.items) |*namespaces| namespaces.deinit(allocator);
+        self.namespaces.deinit(allocator);
+    }
 
     pub fn jsonStringify(self: @This(), s: *std.json.Stringify) std.json.Stringify.Error!void {
         try s.beginObject();
@@ -164,7 +176,7 @@ fn make_all_function_body_empty(gpa: std.mem.Allocator, source: [:0]const u8) ![
 ///     decl: the declaration whose comment would be returned.
 /// Returns:
 ///     The comment of the declaration or null if no comment present.
-fn capture_doc_comment(allocator: std.mem.Allocator, ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) ?[]const u8 {
+fn capture_doc_comment(allocator: std.mem.Allocator, ast: std.zig.Ast, decl: std.zig.Ast.Node.Index) !?[]const u8 {
     // firstToken returns the index of the declared token *Inside* the AST.
     const first_token_of_the_identifier_declared = ast.firstToken(decl);
     // ok, now that I got the first
@@ -215,15 +227,27 @@ fn capture_doc_comment(allocator: std.mem.Allocator, ast: std.zig.Ast, decl: std
 
     while (splitted_lines.next()) |next_line| {
         if (std.mem.startsWith(u8, next_line, "///")) {
-            resultant_comment.appendSlice(allocator, std.mem.trim(u8, next_line[3..], " \t\r\n ")) catch return null;
+            resultant_comment.appendSlice(allocator, std.mem.trim(u8, next_line[3..], " \t\r\n ")) catch {
+                resultant_comment.deinit(allocator);
+                return null;
+            };
         } else if (std.mem.startsWith(u8, next_line, "//!")) {
-            resultant_comment.appendSlice(allocator, std.mem.trim(u8, next_line[3..], " \t\r\n ")) catch return null;
+            resultant_comment.appendSlice(allocator, std.mem.trim(u8, next_line[3..], " \t\r\n ")) catch {
+                resultant_comment.deinit(allocator);
+                return null;
+            };
         } else if (std.mem.startsWith(u8, next_line, "//")) {
-            resultant_comment.appendSlice(allocator, std.mem.trim(u8, next_line[3..], " \t\r\n ")) catch return null;
+            resultant_comment.appendSlice(allocator, std.mem.trim(u8, next_line[2..], " \t\r\n ")) catch {
+                resultant_comment.deinit(allocator);
+                return null;
+            };
         }
     }
 
-    return resultant_comment.toOwnedSlice(allocator) catch return null;
+    return resultant_comment.toOwnedSlice(allocator) catch |err| {
+        resultant_comment.deinit(allocator);
+        return err;
+    };
 }
 
 /// This function checks if the parser should parse/ignore a declaration.
@@ -332,7 +356,7 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, name:
             continue;
         }
         // var identifier_to_return: identifier = undefined;
-        const comment = capture_doc_comment(allocator, ast, decl);
+        const comment_nullable = try capture_doc_comment(allocator, ast, decl);
         const line_number = get_line_number(ast, decl);
 
         const index = @intFromEnum(decl);
@@ -343,12 +367,13 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, name:
                 // const signature = ast.getNodeSource(decl);
 
                 const res: identifier = .{
-                    .comment = comment,
+                    .comment = comment_nullable,
                     .name = name_of,
                     .type = .@"test",
                     .line_number = line_number,
                     .partial_definition = null,
                 };
+                errdefer if (comment_nullable) |comment| allocator.free(comment);
                 try result.components.append(allocator, res);
             },
             .fn_decl,
@@ -365,15 +390,19 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, name:
                 const proto = if (tags[index] == .fn_decl) data[index].node_and_node[0] else decl;
                 const token = ast.nodeMainToken(proto);
                 const name_of = ast.tokenSlice(token + 1);
-                const partial_definition = ast.getNodeSource(proto);
+                const partial_definition = try allocator.dupe(u8, ast.getNodeSource(proto));
 
                 const res: identifier = .{
-                    .comment = comment,
+                    .comment = comment_nullable,
                     .name = name_of,
                     .type = .function,
                     .line_number = line_number,
                     .partial_definition = partial_definition,
                 };
+                errdefer {
+                    if (comment_nullable) |c| allocator.free(c);
+                    allocator.free(partial_definition);
+                }
                 try result.components.append(allocator, res);
             },
             .global_var_decl,
@@ -390,12 +419,17 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, name:
                     // these are the extern declarations
                     // that don't have an assignment, hence,
                     // putting these here.
+                    const pd = try allocator.dupe(u8, ast.getNodeSource(decl));
+                    errdefer {
+                        if (comment_nullable) |c| allocator.free(c);
+                        allocator.free(pd);
+                    }
                     try result.components.append(allocator, .{
-                        .comment = comment,
+                        .comment = comment_nullable,
                         .name = name_of,
                         .type = .constant,
                         .line_number = line_number,
-                        .partial_definition = ast.getNodeSource(decl),
+                        .partial_definition = pd,
                     });
                     continue;
                 };
@@ -403,12 +437,17 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, name:
                 var buffer: [2]std.zig.Ast.Node.Index = undefined;
 
                 const container = ast.fullContainerDecl(&buffer, init_node) orelse {
+                    const pd = try allocator.dupe(u8, ast.getNodeSource(decl));
+                    errdefer {
+                        if (comment_nullable) |c| allocator.free(c);
+                        allocator.free(pd);
+                    }
                     try result.components.append(allocator, .{
-                        .comment = comment,
+                        .comment = comment_nullable,
                         .name = name_of,
                         .type = .constant,
                         .line_number = line_number,
-                        .partial_definition = ast.getNodeSource(decl),
+                        .partial_definition = pd,
                     });
                     continue;
                 };
@@ -436,12 +475,16 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, name:
                 };
 
                 const res: identifier = .{
-                    .comment = comment,
+                    .comment = comment_nullable,
                     .name = name_of,
                     .type = type_of_container,
                     .line_number = line_number,
                     .partial_definition = signature,
                 };
+                errdefer {
+                    if (comment_nullable) |c| allocator.free(c);
+                    allocator.free(signature);
+                }
                 try result.components.append(allocator, res);
 
                 if (source_componenets.members) |members| {
@@ -460,9 +503,12 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, name:
 pub fn __main(allocator: std.mem.Allocator, source: [:0]const u8) ![]const u8 {
     // First, I will remove all function bodies from this source code.
     const sanitized = try make_all_function_body_empty(allocator, source);
+    defer allocator.free(sanitized);
 
     // Now i will start the parsing process
-    const root = try recursive_parse(allocator, sanitized, "root");
+    var root = try recursive_parse(allocator, sanitized, "root");
+    defer root.deinit(allocator);
+
     const result = try std.json.Stringify.valueAlloc(allocator, root, .{});
 
     return result;
@@ -483,5 +529,6 @@ test "make_all_function_body_empty" {
         \\ }
     ;
     const res = try make_all_function_body_empty(std.heap.page_allocator, test_zig_source_code);
+    defer std.heap.page_allocator.free(res);
     std.debug.print("{s}", .{res});
 }
