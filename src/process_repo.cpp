@@ -8,11 +8,19 @@
 #include <string>
 #include <vector>
 
+#define MAX_ZIP_SIZE 500ULL * 1024 * 1024 // this is 500MiB
+
 static size_t write(void* data, size_t size, size_t count, void* user)
 {
     auto* buffer = (std::string*)user;
-    buffer->append((char*)data, size * count);
-    return size * count;
+    const size_t bytes = size * count;
+
+    if (buffer->size() + bytes > MAX_ZIP_SIZE) {
+        return 0;
+    }
+
+    buffer->append((char*)data, bytes);
+    return bytes;
 }
 
 static std::string fetch_zip(const char* url)
@@ -20,13 +28,29 @@ static std::string fetch_zip(const char* url)
     std::string zip;
     CURL* curl = curl_easy_init();
 
+    if (!curl)
+        return {};
+
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &zip);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_perform(curl);
+
+    const CURLcode res = curl_easy_perform(curl);
 
     curl_easy_cleanup(curl);
+
+    if (res != CURLE_OK) {
+        if (res == CURLE_WRITE_ERROR && zip.size() >= MAX_ZIP_SIZE) {
+            std::cerr << "Skipping repository: ZIP exceeds 500 MiB\n";
+        } else {
+            std::cerr << "Failed to download ZIP: "
+                      << curl_easy_strerror(res) << '\n';
+        }
+
+        return {};
+    }
+
     return zip;
 }
 
