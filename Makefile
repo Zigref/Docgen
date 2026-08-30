@@ -9,9 +9,9 @@ main: ./src/main.cpp ./src/root.zig
 
 init:
 	mkdir -p ./include/miniz
-	curl -fL https://github.com/richgel999/miniz/archive/refs/tags/3.1.2.zip -o /tmp/miniz.zip
+	curl -fL https://github.com/richgel999/miniz/releases/download/3.1.2/miniz-3.1.2.zip -o /tmp/miniz.zip
 	unzip -q /tmp/miniz.zip -d /tmp/miniz
-	mv /tmp/miniz/miniz-3.1.2 ./include/miniz
+	mv /tmp/miniz ./include/
 	rm -rf /tmp/miniz /tmp/miniz.zip
 
 

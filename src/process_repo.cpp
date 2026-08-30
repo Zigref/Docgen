@@ -8,14 +8,14 @@
 #include <string>
 #include <vector>
 
-#define MAX_ZIP_SIZE 500ULL * 1024 * 1024 // this is 500MiB
+#define MAX_ZIP_DOWNLOAD_SIZE 500ULL * 1024 * 1024 // this is 500MiB
 
 static size_t write(void* data, size_t size, size_t count, void* user)
 {
     auto* buffer = (std::string*)user;
     const size_t bytes = size * count;
 
-    if (buffer->size() + bytes > MAX_ZIP_SIZE) {
+    if (buffer->size() + bytes > MAX_ZIP_DOWNLOAD_SIZE) {
         return 0;
     }
 
@@ -29,7 +29,7 @@ static std::string fetch_zip(const char* url)
     CURL* curl = curl_easy_init();
 
     if (!curl)
-        return {};
+        return { };
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write);
@@ -41,14 +41,14 @@ static std::string fetch_zip(const char* url)
     curl_easy_cleanup(curl);
 
     if (res != CURLE_OK) {
-        if (res == CURLE_WRITE_ERROR && zip.size() >= MAX_ZIP_SIZE) {
+        if (res == CURLE_WRITE_ERROR && zip.size() >= MAX_ZIP_DOWNLOAD_SIZE) {
             std::cerr << "Skipping repository: ZIP exceeds 500 MiB\n";
         } else {
             std::cerr << "Failed to download ZIP: "
                       << curl_easy_strerror(res) << '\n';
         }
 
-        return {};
+        return { };
     }
 
     return zip;
@@ -175,7 +175,7 @@ std::string process_repo(std::string provider, std::string owner_name, std::stri
             const char* result = parse_zig_source(source.c_str());
             nlohmann::json as_json;
             try {
-                nlohmann::json::parse(result);
+                as_json = nlohmann::json::parse(result);
             } catch (std::exception& e) {
                 return "{\"error\" : \"error while parsing.\"}";
             };
