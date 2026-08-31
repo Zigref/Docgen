@@ -1,11 +1,11 @@
 CPP_COMPILER = g++
-CPP_FLAGS = -std=c++23 -Wall -Wextra -lbrotlienc -lcurl -lsqlite3 -I./include/
-
+CPP_FLAGS = -std=c++23 -Wall -Wextra -I./include/
+LIBS = -lbrotlienc -lcurl -lsqlite3
 
 main: ./src/main.cpp ./src/root.zig
 	mkdir -p ./build
 	zig build-obj ./src/root.zig -lc -femit-bin=./build/parser.o
-	$(CPP_COMPILER) $(CPP_FLAGS) ./src/main.cpp ./src/process_repo.cpp ./include/miniz/miniz.c ./build/parser.o -o ./build/main
+	$(CPP_COMPILER) $(CPP_FLAGS) ./src/main.cpp ./src/process_repo.cpp ./include/miniz/miniz.c ./build/parser.o $(LIBS) -o ./build/main
 
 init:
 	mkdir -p ./include/miniz
@@ -14,7 +14,6 @@ init:
 	unzip -q /tmp/miniz.zip -d /tmp/miniz
 	mv /tmp/miniz ./include/
 	rm -rf /tmp/miniz /tmp/miniz.zip
-
 
 clean:
 	rm -rf ./build
