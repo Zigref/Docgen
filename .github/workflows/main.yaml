@@ -28,6 +28,9 @@ jobs:
 
       - name: build
         run: make
+      
+      - name: download database
+        run: curl -fl https://huggingface.co/buckets/Zigistry/Zigistry/tree/zigistry.db?download=true -o ./zigistry.db
 
       - name: run
         run: ./build/main

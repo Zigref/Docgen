@@ -14,6 +14,7 @@ init:
 	unzip -q /tmp/miniz.zip -d /tmp/miniz
 	mv /tmp/miniz ./include/
 	rm -rf /tmp/miniz /tmp/miniz.zip
+	
 
 clean:
 	rm -rf ./build
