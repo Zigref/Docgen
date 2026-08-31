@@ -10,7 +10,7 @@
 
 #define MAX_ZIP_DOWNLOAD_SIZE 500ULL * 1024 * 1024 // this is 500MiB
 
-static size_t write(void* data, size_t size, size_t count, void* user)
+static size_t curl_writer(void* data, size_t size, size_t count, void* user)
 {
     auto* buffer = (std::string*)user;
     const size_t bytes = size * count;
@@ -32,7 +32,7 @@ static std::string fetch_zip(const char* url)
         return { };
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_writer);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &zip);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 
