@@ -1,9 +1,9 @@
+#include "../include/json.hpp"
 #include <curl/curl.h>
 #include <format>
 #include <fstream>
 #include <iostream>
 #include <miniz/miniz.h>
-#include <nlohmann/json.hpp>
 #include <sstream>
 #include <string>
 #include <vector>

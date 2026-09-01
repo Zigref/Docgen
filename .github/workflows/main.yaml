@@ -30,7 +30,7 @@ jobs:
         run: make
       
       - name: download database
-        run: curl -fL "https://huggingface.co/buckets/Zigistry/Zigistry/resolve/zigistry.db" -o ./zigistry.db
+        run: make download_database 
 
       - name: run
         run: ./build/main

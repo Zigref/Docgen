@@ -6,6 +6,8 @@
 #include <iostream>
 #include <sqlite3.h>
 #include <sstream>
+#include <taskflow/taskflow.hpp>
+
 #define JSON_ERROR_RESPONCE "{\"error\" : \"the documentation generated exceeded the limit.\"}"
 
 std::string brotli_compress_string(const std::string& string_to_compress, int repo_star_count)
@@ -62,6 +64,9 @@ int main()
         &stmt,
         nullptr);
 
+    tf::Executor executor(8);
+    tf::Taskflow taskflow;
+
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         const auto res = split_modify_string(
             (const char*)sqlite3_column_text(stmt, 0));
@@ -71,6 +76,7 @@ int main()
         const auto repo_name = res[2];
         const auto commit_hash = (const char*)sqlite3_column_text(stmt, 1);
         const auto repo_star_count = sqlite3_column_int(stmt, 3);
+        taskflow.emplace([=] {
         const auto process_repo_res = process_repo(provider, owner_name, repo_name, commit_hash);
         const auto compressed_string = brotli_compress_string(process_repo_res, repo_star_count);
 
@@ -80,8 +86,9 @@ int main()
         const std::string file_name = std::format("{}/{}.br", folder, repo_name);
 
         std::ofstream file(file_name, std::ios::binary);
-        file.write(compressed_string.data(), compressed_string.size());
+        file.write(compressed_string.data(), compressed_string.size()); });
     }
+    executor.run(taskflow).wait();
 
     sqlite3_finalize(stmt);
     sqlite3_close(db);
