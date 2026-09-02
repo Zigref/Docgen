@@ -64,7 +64,7 @@ int main()
         &stmt,
         nullptr);
 
-    tf::Executor executor(8);
+    tf::Executor executor(80);
     tf::Taskflow taskflow;
 
     while (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -74,7 +74,7 @@ int main()
 
         const auto owner_name = res[1];
         const auto repo_name = res[2];
-        const auto commit_hash = (const char*)sqlite3_column_text(stmt, 1);
+        const std::string commit_hash = (const char*)sqlite3_column_text(stmt, 1);
         const auto repo_star_count = sqlite3_column_int(stmt, 3);
         taskflow.emplace([=] {
         const auto process_repo_res = process_repo(provider, owner_name, repo_name, commit_hash);

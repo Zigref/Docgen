@@ -32,3 +32,8 @@ reset:
 	rm -rf ./build
 	rm -rf ./.zig-cache
 	rm zigistry.db zigistry.db-shm zigistry.db-wal
+
+format:
+	clang-format -i ./src/*.cpp --style=webkit
+	clang-format -i ./src/*.h --style=webkit
+	cd template && npm run format
