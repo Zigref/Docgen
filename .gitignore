@@ -8,3 +8,4 @@ include/
 *.db*
 database/
 *.out
+.DS_Store
