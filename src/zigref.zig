@@ -335,8 +335,8 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, name:
         allocator,
         source,
         .zig,
-    ) catch @panic("problem with zig source code.");
-    if (ast.errors.len > 0) @panic("problem with zig source code.");
+    ) catch return error.problem_with_zig_code;
+    if (ast.errors.len > 0) return error.problem_with_zig_code;
 
     defer ast.deinit(allocator);
 

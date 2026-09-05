@@ -1,7 +1,7 @@
 const std = @import("std");
 const lib = @import("zigref.zig");
 
-const allocator = std.heap.page_allocator;
+const allocator = std.heap.c_allocator;
 
 export fn parse_zig_source(_source: [*:0]const u8) [*:0]const u8 {
     const source = std.mem.span(_source);
@@ -9,7 +9,7 @@ export fn parse_zig_source(_source: [*:0]const u8) [*:0]const u8 {
     const res = lib.__main(allocator, source) catch |err| {
         std.debug.print("lib.__main failed: {}\n", .{err});
 
-        const allocated_string = allocator.dupeZ(u8, "Error while parsing.") catch @panic("No more RAM available");
+        const allocated_string = allocator.dupeZ(u8, "{\"error\":\"Error while parsing.\"}") catch @panic("No more RAM available");
         return allocated_string;
     };
 
