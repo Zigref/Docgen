@@ -227,3 +227,27 @@ main {
     background-color: #b94011;
     border-radius: 2px;
 }
+
+.centerize {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: calc(100vh - 80px);
+    width: 100vw;
+}
+
+.input-text {
+    background-color: transparent;
+    border: 1px solid white;
+    font-size: 20px;
+    color: white;
+    width: 400px;
+}
+
+.block {
+    display: block;
+    margin-bottom: 50px;
+}
+.block > h1, h5 {
+    text-align: center;
+}
