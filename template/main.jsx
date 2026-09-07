@@ -163,15 +163,93 @@ function TreeView({ tree, onSelect }) {
     );
 }
 
-
 function Home() {
-    return <div className="content-wrapper centerize">
-        <span className='block'>
-            <h1><span style={{color: 'yellow'}}>Zig</span>ref</h1>
-            <h5>Search docs for multiple Zig packages.</h5>
-            <input autoFocus placeholder='Search...' className='input-text' type='text'/>
-        </span>
-    </div>
+    return (
+        <div className="content-wrapper centerize">
+            <span className="block">
+                <h1>
+                    <span style={{ color: 'yellow' }}>Zig</span>ref
+                </h1>
+                <h5>Search docs for multiple Zig packages.</h5>
+                <input autoFocus placeholder="Search..." className="input-text" type="text" />
+            </span>
+        </div>
+    );
+}
+
+function HomeFooter() {
+    return (
+        <footer className="home-footer">
+            <a href="https://zigistry.dev" target="_blank" rel="noopener noreferrer">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="lucide lucide-package-icon lucide-package"
+                >
+                    <path d="m7.5 4.27 9 5.15" />
+                    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                    <path d="m3.3 7 8.7 5 8.7-5" />
+                    <path d="M12 22V12" />
+                </svg>
+                Zigistry
+            </a>
+            <a href="https://github.com/Zigistry/Zigref" target="_blank" rel="noopener noreferrer">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="lucide lucide-github-icon lucide-github"
+                >
+                    <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+                    <path d="M9 18c-4.51 2-5-2-7-2" />
+                </svg>
+                GitHub
+            </a>
+        </footer>
+    );
+}
+
+function DocsFooter({ commit_hash, size_in_byte }) {
+    return (
+        <footer>
+            <span>
+                #{commit_hash} &nbsp;
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="10"
+                    height="10"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="lucide lucide-file-archive-icon lucide-file-archive"
+                >
+                    <path d="M13.659 22H18a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v11.5" />
+                    <path d="M14 2v5a1 1 0 0 0 1 1h5" />
+                    <path d="M8 12v-1" />
+                    <path d="M8 18v-2" />
+                    <path d="M8 7V6" />
+                    <circle cx="8" cy="20" r="2" />
+                </svg>
+                {size_in_byte} KiB
+            </span>
+        </footer>
+    );
 }
 
 function App() {
@@ -195,7 +273,7 @@ function App() {
         };
     }, []);
 
-    console.log(currentPath)
+    const is_home_page = currentPath === '/';
 
     useEffect(() => {
         Prism.highlightAll();
@@ -215,6 +293,7 @@ function App() {
         return () => window.removeEventListener('hash_has_changed', on_hash_change);
     }, []);
     useEffect(() => {
+        if (is_home_page) return;
         fetch('/template.json.br')
             .then((r) => {
                 const size_byte = Number(r.headers.get('Content-Length'));
@@ -227,7 +306,22 @@ function App() {
                 setCommitHash(data.metadata.commit_hash.slice(0, 10) + '...');
                 setDataEntries(data.data);
             });
-    }, []);
+    }, [is_home_page]);
+
+    if (is_home_page) {
+        return (
+            <div>
+                <nav>
+                    <a href="/" style={{ color: 'white', textDecoration: 'none' }}>
+                        <span style={{ color: 'yellow' }}>Zig</span>ref
+                    </a>
+                </nav>
+                <Home />
+                <HomeFooter />
+            </div>
+        );
+    }
+
     return (
         <div>
             <nav>
@@ -236,111 +330,83 @@ function App() {
                 </a>
                 <input className="search_text" type="text" />
             </nav>
-            {currentPath === "/" ?
-                <Home />
-                :
-                <div class="content-wrapper">
-                    <aside id="side-side-bar">
-                        <button
-                            class={`sidebar-btn ${active_view === 'files' ? 'active' : ''}`}
-                            onClick={() => set_active_view('files')}
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="24"
-                                height="24"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                class="lucide lucide-folder-open-icon lucide-folder-open"
-                            >
-                                <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" />
-                            </svg>
-                        </button>
-                        <button
-                            class={`sidebar-btn ${active_view === 'search' ? 'active' : ''}`}
-                            onClick={() => set_active_view('search')}
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="24"
-                                height="24"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                class="lucide lucide-search-icon lucide-search"
-                            >
-                                <path d="m21 21-4.34-4.34" />
-                                <circle cx="11" cy="11" r="8" />
-                            </svg>
-                        </button>
-                    </aside>
-                    <aside id="sidebar">
-                        {active_view === 'files' ? (
-                            <>
-                                <h5 id="mention_title">File Explorer</h5>
-                                {tree ? <TreeView tree={tree} onSelect={setSelectedIndex} /> : 'Loading…'}
-                            </>
-                        ) : (
-                            <>
-                                <h5 id="mention_title">Search</h5>
-                            </>
-                        )}
-                    </aside>
-
-                    <main>
-                        {selectedIndex !== null ? (
-                            <>
-                                <h2>
-                                    Showing documentation for file:{' '}
-                                    <span className="line_number">{selectedIndex.name}</span>
-                                </h2>
-                                {selectedIndex.value != null && dataEntries ? (
-                                    <RenderDocumentation
-                                        key={selectedIndex.value}
-                                        data={dataEntries[selectedIndex.value]}
-                                    />
-                                ) : (
-                                    <p>Select a file</p>
-                                )}
-                            </>
-                        ) : (
-                            <p>Select a file</p>
-                        )}
-                    </main>
-                </div>
-            }
-            <footer>
-                <span>
-                    #{commit_hash} &nbsp;
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="10"
-                        height="10"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        class="lucide lucide-file-archive-icon lucide-file-archive"
+            <div class="content-wrapper">
+                <aside id="side-side-bar">
+                    <button
+                        class={`sidebar-btn ${active_view === 'files' ? 'active' : ''}`}
+                        onClick={() => set_active_view('files')}
                     >
-                        <path d="M13.659 22H18a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v11.5" />
-                        <path d="M14 2v5a1 1 0 0 0 1 1h5" />
-                        <path d="M8 12v-1" />
-                        <path d="M8 18v-2" />
-                        <path d="M8 7V6" />
-                        <circle cx="8" cy="20" r="2" />
-                    </svg>
-                    {size_in_byte} KiB
-                </span>
-            </footer>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="24"
+                            height="24"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-folder-open-icon lucide-folder-open"
+                        >
+                            <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" />
+                        </svg>
+                    </button>
+                    <button
+                        class={`sidebar-btn ${active_view === 'search' ? 'active' : ''}`}
+                        onClick={() => set_active_view('search')}
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="24"
+                            height="24"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-search-icon lucide-search"
+                        >
+                            <path d="m21 21-4.34-4.34" />
+                            <circle cx="11" cy="11" r="8" />
+                        </svg>
+                    </button>
+                </aside>
+                <aside id="sidebar">
+                    {active_view === 'files' ? (
+                        <>
+                            <h5 id="mention_title">File Explorer</h5>
+                            {tree ? <TreeView tree={tree} onSelect={setSelectedIndex} /> : 'Loading…'}
+                        </>
+                    ) : (
+                        <>
+                            <h5 id="mention_title">Search</h5>
+                        </>
+                    )}
+                </aside>
+
+                <main>
+                    {selectedIndex !== null ? (
+                        <>
+                            <h2>
+                                Showing documentation for file:{' '}
+                                <span className="line_number">{selectedIndex.name}</span>
+                            </h2>
+                            {selectedIndex.value != null && dataEntries ? (
+                                <RenderDocumentation
+                                    key={selectedIndex.value}
+                                    data={dataEntries[selectedIndex.value]}
+                                />
+                            ) : (
+                                <p>Select a file</p>
+                            )}
+                        </>
+                    ) : (
+                        <p>Select a file</p>
+                    )}
+                </main>
+            </div>
+            <DocsFooter commit_hash={commit_hash} size_in_byte={size_in_byte} />
         </div>
     );
 }

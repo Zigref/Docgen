@@ -248,6 +248,26 @@ main {
     display: block;
     margin-bottom: 50px;
 }
-.block > h1, h5 {
+.block > h1,
+h5 {
     text-align: center;
+}
+
+.home-footer {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 12px;
+}
+
+.home-footer a {
+    color: white;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.home-footer a:hover {
+    text-decoration: underline;
 }
