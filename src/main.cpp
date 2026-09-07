@@ -77,16 +77,17 @@ int main()
         const std::string commit_hash = (const char*)sqlite3_column_text(stmt, 1);
         const auto repo_star_count = sqlite3_column_int(stmt, 3);
         taskflow.emplace([=] {
-        const auto process_repo_res = process_repo(provider, owner_name, repo_name, commit_hash);
-        const auto compressed_string = brotli_compress_string(process_repo_res, repo_star_count);
+            const auto process_repo_res = process_repo(provider, owner_name, repo_name, commit_hash);
+            const auto compressed_string = brotli_compress_string(process_repo_res, repo_star_count);
 
-        const std::string folder = std::format("./database/{}/{}", res[0], owner_name);
-        std::filesystem::create_directories(folder);
+            const std::string folder = std::format("./database/{}/{}", res[0], owner_name);
+            std::filesystem::create_directories(folder);
 
-        const std::string file_name = std::format("{}/{}.br", folder, repo_name);
+            const std::string file_name = std::format("{}/{}.br", folder, repo_name);
 
-        std::ofstream file(file_name, std::ios::binary);
-        file.write(compressed_string.data(), compressed_string.size()); });
+            std::ofstream file(file_name, std::ios::binary);
+            file.write(compressed_string.data(), compressed_string.size());
+        });
     }
     executor.run(taskflow).wait();
 

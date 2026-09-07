@@ -1,11 +1,18 @@
 #include "../include/json.hpp"
+#include <cerrno>
+#include <chrono>
+#include <cstring>
 #include <curl/curl.h>
 #include <format>
 #include <fstream>
 #include <iostream>
 #include <miniz/miniz.h>
+#include <signal.h>
 #include <sstream>
 #include <string>
+#include <sys/wait.h>
+#include <thread>
+#include <unistd.h>
 #include <vector>
 
 #define MAX_ZIP_DOWNLOAD_SIZE 500ULL * 1024 * 1024 // this is 500MiB
@@ -66,6 +73,26 @@ static std::string trim(const std::string& str)
 extern "C" {
 const char* parse_zig_source(const char* _source);
 void free_zig_string(const char* _string_to_free);
+}
+
+static bool try_to_parse(const std::string& source)
+{
+    pid_t pid = fork();
+
+    if (pid < 0)
+        return false;
+
+    if (pid == 0) {
+        alarm(5);
+        parse_zig_source(source.c_str());
+        _exit(0);
+    }
+
+    int status;
+    if (waitpid(pid, &status, 0) < 0)
+        return false;
+
+    return WIFEXITED(status) && WEXITSTATUS(status) == 0;
 }
 
 std::string get_git_commit_hash(mz_zip_archive* zip_archive_main_struct)
@@ -171,6 +198,13 @@ std::string process_repo(std::string provider, std::string owner_name, std::stri
 
             std::string source((const char*)data, size);
             free(data);
+
+            // if parsing the file fails, I will skip the file.
+            if (!try_to_parse(source)) {
+                std::cerr << "Skipping file that failed the parse canary: "
+                          << filename << std::endl;
+                continue;
+            }
 
             const char* result = parse_zig_source(source.c_str());
             nlohmann::json as_json;

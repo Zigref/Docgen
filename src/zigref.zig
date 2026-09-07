@@ -123,7 +123,7 @@ pub const namespace = struct {
 /// Returns:
 ///     Zig source code with bodies of all functions replaced with {}
 fn make_all_function_body_empty(gpa: std.mem.Allocator, source: [:0]const u8) ![:0]const u8 {
-    var ast = std.zig.Ast.parse(gpa, source, .zig) catch @panic("problem with zig source code.");
+    var ast = std.zig.Ast.parse(gpa, source, .zig) catch return error.problem_with_zig_code;
     if (ast.errors.len > 0) return error.problem_with_zig_code;
     defer ast.deinit(gpa);
 
@@ -471,7 +471,7 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, name:
                     .keyword_enum => .@"enum",
                     .keyword_union => .@"union",
                     .keyword_opaque => .@"opaque",
-                    else => @panic("unknown container type."),
+                    else => return error.problem_with_zig_code,
                 };
 
                 const res: identifier = .{
@@ -493,7 +493,7 @@ pub fn recursive_parse(allocator: std.mem.Allocator, source: [:0]const u8, name:
                     try result.namespaces.append(allocator, child_namespace);
                 }
             },
-            else => @panic("unsupported root declaration type."),
+            else => return error.problem_with_zig_code,
         }
     }
 
