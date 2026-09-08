@@ -101,11 +101,9 @@ std::string get_git_commit_hash(mz_zip_archive* zip_archive_main_struct)
 }
 
 /// Skip directory that contain unnesecary code.
-static bool should_skip_this_folder(std::stringstream& rel)
+static bool should_skip_this_folder(const std::vector<std::string>& parts)
 {
-    std::string segment;
-
-    while (std::getline(rel, segment, '/')) {
+    for (const auto& segment : parts) {
         if (segment == "zig-pkg" || segment == "deps" || segment == "vendor" || segment == "third_party" || segment == ".zig-cache" || segment == "zig-cache" || segment == "zig-out" || segment == ".git" || segment == "example" || segment == "examples") {
             return true;
         }
@@ -123,13 +121,21 @@ std::string process_repo(std::string provider, std::string owner_name, std::stri
 
     auto zip = fetch_zip(url_to_fetch.c_str());
 
-    mz_zip_reader_init_mem(
-        &zip_archive_main_struct,
-        zip.data(),
-        zip.size(),
-        0);
+    if (zip.empty()) {
+        return "{\"error\" : \"failed to fetch repo.\"}";
+    }
+
+    if (!mz_zip_reader_init_mem(
+            &zip_archive_main_struct,
+            zip.data(),
+            zip.size(),
+            0)) {
+        return "{\"error\" : \"failed to read repo archive.\"}";
+    }
 
     nlohmann::json file_results;
+    file_results["project_tree"] = nlohmann::json::object();
+    file_results["actual_data"] = nlohmann::json::array();
 
     std::string top_level_documentation = "";
 
@@ -137,21 +143,42 @@ std::string process_repo(std::string provider, std::string owner_name, std::stri
         bool already_parsed_the_root_file_for_documentation = false;
         int file_roll_number = 0;
         for (mz_uint i = 0; i < mz_zip_reader_get_num_files(&zip_archive_main_struct); i++) {
-            char filename[256];
+            char filename[1024];
 
-            mz_zip_reader_get_filename(&zip_archive_main_struct, i, filename, sizeof(filename));
+            if (!mz_zip_reader_get_filename(&zip_archive_main_struct, i, filename, sizeof(filename))) {
+                continue;
+            }
 
             if (const char* ext = strrchr(filename, '.'); !ext || strcmp(ext, ".zig") != 0) {
                 continue;
             }
 
-            std::stringstream rel(filename);
-            if (should_skip_this_folder(rel)) {
+            std::vector<std::string> parts;
+            std::string segment;
+            std::stringstream ss(filename);
+
+            while (std::getline(ss, segment, '/'))
+                if (!segment.empty())
+                    parts.push_back(segment);
+
+            if (parts.size() < 2)
+                continue;
+
+            parts.erase(parts.begin());
+
+            std::string rel_path;
+            for (const auto& part : parts) {
+                if (!rel_path.empty()) {
+                    rel_path += '/';
+                }
+                rel_path += part;
+            }
+            if (should_skip_this_folder(parts)) {
                 continue;
             }
 
             if (!already_parsed_the_root_file_for_documentation) {
-                if (rel.str() == "src/root.zig" || rel.str() == "src/lib.zig") {
+                if (rel_path == "src/root.zig" || rel_path == "src/main.zig" || rel_path == "src/lib.zig") {
                     // means, this file is the one
                     // which will be the chosen as the main file
                     // of the library.
@@ -215,9 +242,7 @@ std::string process_repo(std::string provider, std::string owner_name, std::stri
             };
             nlohmann::json* current = &file_results["project_tree"];
 
-            std::string part;
-
-            while (std::getline(rel, part, '/')) {
+            for (const auto& part : parts) {
                 current = &((*current)[part]);
             }
             *current = file_roll_number;
@@ -232,11 +257,13 @@ std::string process_repo(std::string provider, std::string owner_name, std::stri
 
     nlohmann::json final_results;
     nlohmann::json config;
-    config["commit_hash"] = get_git_commit_hash(&zip_archive_main_struct);
-    final_results["metadata"]["top_level_documentation"] = top_level_documentation;
+    config["commit_hash"] = commit_hash;
+    config["project_tree"] = file_results.value("project_tree", nlohmann::json::object());
+    if (!top_level_documentation.empty()) {
+        config["top_level_documentation"] = top_level_documentation;
+    }
     final_results["metadata"] = config;
-    final_results["metadata"]["project_tree"] = file_results["project_tree"];
-    final_results["data"] = file_results["actual_data"];
+    final_results["data"] = file_results.value("actual_data", nlohmann::json::array());
 
     mz_zip_reader_end(&zip_archive_main_struct);
     return final_results.dump();

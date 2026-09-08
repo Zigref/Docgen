@@ -59,7 +59,8 @@ int main()
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(
         db,
-        "SELECT id, latest_commit_hash, last_updated_in_this_database, stargazer_count FROM repos",
+        "SELECT repos.id, repos.latest_commit_hash, repos.last_updated_in_this_database, repos.stargazer_count "
+        "FROM repos INNER JOIN packages ON packages.repo_id = repos.id",
         -1,
         &stmt,
         nullptr);
