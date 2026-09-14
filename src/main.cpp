@@ -6,6 +6,7 @@
 #include <iostream>
 #include <sqlite3.h>
 #include <sstream>
+#include <string_view>
 #include <taskflow/taskflow.hpp>
 
 #define JSON_ERROR_RESPONCE "{\"error\" : \"the documentation generated exceeded the limit.\"}"
@@ -51,16 +52,31 @@ std::array<std::string, 3> split_modify_string(const char* str)
     return res;
 }
 
-int main()
+const char* query = R"(
+
+    SELECT repos.id, repos.latest_commit_hash, repos.stargazer_count,
+    COALESCE(
+        unixepoch(repos.last_updated_in_this_database) >= unixepoch('now', '-30 hours')
+        OR unixepoch(repos.pushed_at) >= unixepoch('now', '-30 hours')
+        , 1
+    )
+    FROM repos
+    INNER JOIN packages
+    ON packages.repo_id = repos.id
+
+)";
+
+int main(int argc, char** argv)
 {
+    const bool all = argc > 1 && std::string_view(argv[1]) == "--all";
+
     sqlite3* db;
     sqlite3_open("./zigistry.db", &db);
 
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(
         db,
-        "SELECT repos.id, repos.latest_commit_hash, repos.last_updated_in_this_database, repos.stargazer_count "
-        "FROM repos INNER JOIN packages ON packages.repo_id = repos.id",
+        query,
         -1,
         &stmt,
         nullptr);
@@ -76,15 +92,21 @@ int main()
         const auto owner_name = res[1];
         const auto repo_name = res[2];
         const std::string commit_hash = (const char*)sqlite3_column_text(stmt, 1);
-        const auto repo_star_count = sqlite3_column_int(stmt, 3);
+        const auto repo_star_count = sqlite3_column_int(stmt, 2);
+        const bool is_recent = sqlite3_column_int(stmt, 3);
+
+        const std::string folder = std::format("./database/{}/{}", res[0], owner_name);
+        const std::string file_name = std::format("{}/{}.br", folder, repo_name);
+
+        if (!all && !is_recent && std::filesystem::exists(file_name)) {
+            continue;
+        }
+
         taskflow.emplace([=] {
             const auto process_repo_res = process_repo(provider, owner_name, repo_name, commit_hash);
             const auto compressed_string = brotli_compress_string(process_repo_res, repo_star_count);
 
-            const std::string folder = std::format("./database/{}/{}", res[0], owner_name);
             std::filesystem::create_directories(folder);
-
-            const std::string file_name = std::format("{}/{}.br", folder, repo_name);
 
             std::ofstream file(file_name, std::ios::binary);
             file.write(compressed_string.data(), compressed_string.size());
