@@ -39,7 +39,13 @@ init:
 
 download_database:
 	curl -fL "https://huggingface.co/buckets/Zigistry/Zigistry/resolve/zigistry.db" -o ./zigistry.db
-	
+
+sync_from_hf:
+	mkdir -p ./database
+	hf sync hf://buckets/Zigref/Zigref/database ./database
+
+sync_to_hf:
+	hf sync ./database hf://buckets/Zigref/Zigref/database
 
 clean:
 	rm -rf ./build

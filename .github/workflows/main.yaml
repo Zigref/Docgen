@@ -1,46 +1,57 @@
-name: release initial database
+name: Update Zigref Documentation
 
 on:
+  schedule:
+    - cron: '0 0 * * *'
   workflow_dispatch:
 
 jobs:
-  build:
+  update-docs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write
+      contents: read
 
     steps:
-      - name: checkout
-        uses: actions/checkout@v7
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: install dependencies
+      - name: Install dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y clang curl unzip zip  libcurl4-openssl-dev libbrotli-dev libsqlite3-dev nlohmann-json3-dev make
+          sudo apt-get update && sudo apt-get install -y clang curl unzip zip libcurl4-openssl-dev libbrotli-dev libsqlite3-dev nlohmann-json3-dev make
 
-      - name: install zig
+      - name: setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: authenticate with hugging face
+        run: uvx hf auth login --token ${{ secrets.HF_TOKEN }}
+
+      - name: Install Zig
         uses: mlugg/setup-zig@v2
         with:
           version: 0.16.0
 
-      - name: init
+      - name: Init dependencies
         run: make init
 
-      - name: build
+      - name: Build
         run: make
-      
-      - name: download database
-        run: make download_database 
 
-      - name: run
+      - name: Download Zigistry database
+        run: make download_database
+
+      - name: syncing hugging face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          mkdir -p ./database
+          uvx hf sync hf://buckets/Zigref/Zigref/database ./database
+
+      - name: Generate documentation
         run: ./build/main
 
-      - name: zip
-        run: zip -r database.zip ./database
-
-      - name: uploading forlder to release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: database
-          name: Database
-          files: database.zip
+      - name: Upload updated docs to Hugging Face Bucket
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          uvx hf sync ./database hf://buckets/Zigref/Zigref/database

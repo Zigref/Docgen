@@ -84,14 +84,29 @@ int main(int argc, char** argv)
     tf::Executor executor(80);
     tf::Taskflow taskflow;
 
+    int total_count = 0;
+    int skipped_count = 0;
+    int queued_count = 0;
+
     while (sqlite3_step(stmt) == SQLITE_ROW) {
-        const auto res = split_modify_string(
-            (const char*)sqlite3_column_text(stmt, 0));
+        total_count++;
+        const auto id_text = (const char*)sqlite3_column_text(stmt, 0);
+        if (!id_text) {
+            continue;
+        }
+        const auto res = split_modify_string(id_text);
+        if (res[0].empty() || res[1].empty() || res[2].empty()) {
+            continue;
+        }
         const auto provider = res[0] == "gh" ? "github.com" : "codeberg.org";
 
         const auto owner_name = res[1];
         const auto repo_name = res[2];
-        const std::string commit_hash = (const char*)sqlite3_column_text(stmt, 1);
+        const auto commit_text = (const char*)sqlite3_column_text(stmt, 1);
+        const std::string commit_hash = commit_text ? commit_text : "";
+        if (commit_hash.empty()) {
+            continue;
+        }
         const auto repo_star_count = sqlite3_column_int(stmt, 2);
         const bool is_recent = sqlite3_column_int(stmt, 3);
 
@@ -99,9 +114,11 @@ int main(int argc, char** argv)
         const std::string file_name = std::format("{}/{}.br", folder, repo_name);
 
         if (!all && !is_recent && std::filesystem::exists(file_name)) {
+            skipped_count++;
             continue;
         }
 
+        queued_count++;
         taskflow.emplace([=] {
             const auto process_repo_res = process_repo(provider, owner_name, repo_name, commit_hash);
             const auto compressed_string = brotli_compress_string(process_repo_res, repo_star_count);
@@ -112,7 +129,13 @@ int main(int argc, char** argv)
             file.write(compressed_string.data(), compressed_string.size());
         });
     }
+
+    std::cout << "total packages: " << total_count << "\n";
+    std::cout << "skipped: " << skipped_count << "\n";
+    std::cout << "going to generate: " << queued_count << "\n";
+
     executor.run(taskflow).wait();
+    std::cout << "Documentation generation completed successfully.\n";
 
     sqlite3_finalize(stmt);
     sqlite3_close(db);
